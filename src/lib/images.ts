@@ -1,5 +1,5 @@
-/** Downscale a photo to a JPEG no larger than maxSide, returned as base64 (no data: prefix). */
-export async function toJpegBase64(file: Blob, maxSide = 2000, quality = 0.88): Promise<string> {
+/** Downscale a photo to a JPEG no larger than maxSide on its long edge. */
+export async function toJpeg(file: Blob, maxSide = 2400, quality = 0.9): Promise<Blob> {
   const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
   const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
   const w = Math.round(bmp.width * scale);
@@ -9,12 +9,5 @@ export async function toJpegBase64(file: Blob, maxSide = 2000, quality = 0.88): 
   canvas.height = h;
   canvas.getContext('2d')!.drawImage(bmp, 0, 0, w, h);
   bmp.close();
-  const blob = await new Promise<Blob>((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('encode failed'))), 'image/jpeg', quality));
-  const dataUrl = await new Promise<string>((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result as string);
-    r.onerror = () => rej(r.error);
-    r.readAsDataURL(blob);
-  });
-  return dataUrl.slice(dataUrl.indexOf(',') + 1);
+  return new Promise<Blob>((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('encode failed'))), 'image/jpeg', quality));
 }

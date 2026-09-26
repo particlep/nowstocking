@@ -1,9 +1,11 @@
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { buildCatalog, buildCsv } from '../shared/inventory';
 import type { Mutation } from '../shared/schema';
 import { TABLE_NAMES } from '../shared/schema';
 import { requireAccess, type AppEnv } from './auth';
-import { getImportImage, ImportError, parsePage } from './import';
+import {
+  createJob, deleteJob, getImportImage, getJob, ImportError, JOB_ID, listJobs, markCommitted, startReading, uploadPage,
+} from './import';
 import { applyMutations } from './mutations';
 import { readChanges } from './rows';
 
@@ -44,14 +46,51 @@ app.get('/history/:table/:id', async (c) => {
   return c.json({ changes: results });
 });
 
-app.post('/import', async (c) => {
+// ---- Photo import (background Workflow) ----
+
+const job = async (c: Context<AppEnv>, fn: (jobId: string) => Promise<Response>) => {
+  const jobId = c.req.param('id') ?? '';
+  if (!JOB_ID.test(jobId)) return c.json({ error: 'bad import id' }, 400);
   try {
-    return c.json(await parsePage(c.env, c.get('user'), await c.req.json()));
+    return await fn(jobId);
+  } catch (e) {
+    if (e instanceof ImportError) return c.json({ error: e.message }, e.status);
+    throw e;
+  }
+};
+
+app.get('/import/jobs', async (c) => c.json({ jobs: await listJobs(c.env.DB) }));
+
+app.post('/import/jobs', async (c) => {
+  const body = await c.req.json<{ page_count?: number }>().catch(() => ({}) as { page_count?: number });
+  try {
+    return c.json({ id: await createJob(c.env.DB, c.get('user'), Number(body.page_count)) });
   } catch (e) {
     if (e instanceof ImportError) return c.json({ error: e.message }, e.status);
     throw e;
   }
 });
+
+app.get('/import/jobs/:id', (c) => job(c, async (id) => c.json(await getJob(c.env.DB, id))));
+
+app.put('/import/jobs/:id/pages/:page', (c) =>
+  job(c, async (id) => {
+    await uploadPage(c.env, id, Number(c.req.param('page')), c.req.header('content-type') ?? '', await c.req.arrayBuffer());
+    return c.json({ ok: true });
+  }),
+);
+
+app.post('/import/jobs/:id/start', (c) =>
+  job(c, async (id) => {
+    const body = await c.req.json<{ pages?: number[] }>().catch(() => ({}) as { pages?: number[] });
+    await startReading(c.env, id, Array.isArray(body.pages) ? body.pages.map(Number) : undefined);
+    return c.json(await getJob(c.env.DB, id));
+  }),
+);
+
+app.post('/import/jobs/:id/committed', (c) => job(c, async (id) => { await markCommitted(c.env.DB, id); return c.json({ ok: true }); }));
+
+app.delete('/import/jobs/:id', (c) => job(c, async (id) => { await deleteJob(c.env, id); return c.json({ ok: true }); }));
 
 app.get('/import/image/*', (c) => getImportImage(c.env, c.req.path.replace(/^\/api\/import\/image\//, '')));
 
@@ -70,5 +109,7 @@ app.onError((err, c) => {
   console.error(err);
   return c.json({ error: 'server error' }, 500);
 });
+
+export { ImportWorkflow } from './importWorkflow';
 
 export default app;

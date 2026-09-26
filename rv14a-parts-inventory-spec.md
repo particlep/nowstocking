@@ -291,7 +291,12 @@ If the Cloudflare Access session expires while offline, API calls fail on reconn
 |---|---|---|
 | GET | /api/sync?since=<version> | All rows (including tombstones) with version above `since` |
 | POST | /api/mutations | Batch of queued patches. Idempotent by client-generated mutation id. Writes `change_log`. |
-| POST | /api/import | Upload one page photo (base64 JPEG). Stores it in R2 and returns parsed rows for review. The client sends pages one at a time. |
+| GET/POST | /api/import/jobs | List imports / create one (`page_count`) |
+| PUT | /api/import/jobs/:id/pages/:n | Upload one page photo (raw JPEG body) |
+| POST | /api/import/jobs/:id/start | Start the Workflow for uploaded pages, or `{pages}` to retry specific ones |
+| GET | /api/import/jobs/:id | Job, per-page status, and parsed rows |
+| POST | /api/import/jobs/:id/committed | Mark committed |
+| DELETE | /api/import/jobs/:id | Delete the job and its photos |
 | GET | /api/import/image/<key> | Serve an uploaded page photo for the review screen |
 | GET | /api/me | Signed-in email |
 | GET | /api/export.csv | Full export |
@@ -299,18 +304,19 @@ If the Cloudflare Access session expires while offline, API calls fail on reconn
 
 - The Worker validates the `Cf-Access-Jwt-Assertion` header on every `/api` request, checking the team domain and the AUD tag. The email in the JWT becomes `updated_by`.
 - Set `workers_dev = false` and turn off preview URLs. Only `pc-rv14a.nowstocking.com` is behind Access.
-- Committing a reviewed import is an ordinary mutation (a kit insert plus item inserts), so it goes through the outbox like any other edit. There's no separate commit endpoint.
-- D1 allows 50 queries per request on the free plan. `/api/mutations` stops before that limit and returns results only for the mutations it applied. The client resends the rest.
+- Committing a reviewed import is an ordinary mutation (a kit insert plus item inserts), so it goes through the outbox like any other edit.
+- `/api/mutations` caps D1 queries per request (sized for the free plan's 50) and returns results only for the mutations it applied. The client resends the rest.
 
 ## Import From Photos
 
-1. Upload all page photos for one kit in a single session (rotated is fine).
-2. Worker stores them in R2 and sends them to Claude (`claude-opus-5`, adaptive thinking, structured output) to extract rows: stock code, description, qty, unit, Van's bin, and nesting.
-3. Pages are parsed in order. A bag or sub-kit that continues onto the next page stays open across the page break.
-4. Nesting rule: a BAG line starts a bag. Indented lines under it are its parts. A sub-kit line starts a sub-kit.
-5. Unit rule: description ending in (LB) means `lb`. Otherwise `ea`.
-6. I review in an editable table, with the source photo next to it for checking. Then I commit.
-7. If the target kit already has items, commit shows a warning with the existing item count and needs a confirmation.
+1. Pick photos of every page of one kit (rotated is fine) and upload them. Each photo is downscaled on the phone and stored in R2. This takes seconds, and it's the only part that needs the screen kept open.
+2. A Cloudflare Workflow (`ImportWorkflow`) reads all pages in parallel with Claude (`claude-opus-5`, adaptive thinking, structured output). Each page is its own step with retries, so the phone can be locked or the app closed. Results are stored per page in D1 (`import_jobs`, `import_pages`).
+3. Nesting rule: a BAG line starts a bag. Indented lines under it are its parts. A sub-kit line starts a sub-kit. A bag that continues onto the next page stays open across the page break.
+4. Unit rule: description ending in (LB) means `lb`. Otherwise `ea`.
+5. Review (`/import/:job`) polls for progress and lists lines as they arrive. The default filter is "Needs review": lines the reader flagged as hard to read. Tapping a line opens a full-screen editor (`/import/:job/row/:key`) with the page photo, big fields, "Looks right · next flagged", previous/next, add line, and remove line. Edits are kept on the phone (IndexedDB) until commit.
+6. Failed pages show the error and can be retried on their own.
+7. Commit writes the kit and items as one mutation. It warns about existing items in the kit, failed pages, and unreviewed flagged lines.
+8. Deleting an import removes its photos from R2. Committed items stay.
 
 ## Labels
 

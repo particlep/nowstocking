@@ -3,7 +3,9 @@ import { TabBar } from './components/chrome';
 import { syncState } from './data/store';
 import { signIn } from './data/sync';
 import { AddItemPage } from './pages/AddItem';
-import { ImportPage } from './pages/Import';
+import { ImportListPage } from './pages/Import';
+import { ImportJobPage } from './pages/ImportJob';
+import { ImportRowPage } from './pages/ImportRow';
 import { ItemDetailPage } from './pages/ItemDetail';
 import { LabelsPage } from './pages/Labels';
 import { LocationDetailPage } from './pages/LocationDetail';
@@ -42,7 +44,9 @@ export function App() {
           <Route path="/receive/:kit" component={ReceivingKitPage} />
           <Route path="/pick" component={PickListsPage} />
           <Route path="/pick/:id" component={PickListDetailPage} />
-          <Route path="/import" component={ImportPage} />
+          <Route path="/import" component={ImportListPage} />
+          <Route path="/import/:id" component={ImportJobPage} />
+          <Route path="/import/:id/row/:key" component={ImportRowPage} />
           <Route path="/locations" component={LocationsPage} />
           <Route path="/labels" component={LabelsPage} />
           <Route path="/settings" component={SettingsPage} />

@@ -32,6 +32,9 @@
       "migrations_dir": "migrations"
     }
   ],
+  "workflows": [
+    { "name": "rv14a-import", "binding": "IMPORT_WORKFLOW", "class_name": "ImportWorkflow" }
+  ],
   "r2_buckets": [
     { "binding": "IMPORTS", "bucket_name": "rv14a-imports" }
   ],

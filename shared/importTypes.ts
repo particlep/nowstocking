@@ -20,15 +20,34 @@ export const ParsedPage = z.object({
 export type ParsedRow = z.infer<typeof ParsedRow>;
 export type ParsedPage = z.infer<typeof ParsedPage>;
 
-export interface ImportPageRequest {
-  batch_id: string;
+export type ImportJobStatus = 'uploading' | 'processing' | 'done' | 'committed';
+export type ImportPageStatus = 'waiting' | 'uploaded' | 'reading' | 'done' | 'failed';
+
+export interface ImportPageInfo {
   page: number;
-  media_type: 'image/jpeg' | 'image/png' | 'image/webp';
-  data: string; // base64, no data: prefix
+  status: ImportPageStatus;
+  image_key: string | null;
+  error: string | null;
+  result: ParsedPage | null;
+  updated_at: string;
 }
 
-export interface ImportPageResponse {
-  page: number;
-  image_key: string;
-  parsed: ParsedPage;
+export interface ImportJob {
+  id: string;
+  status: ImportJobStatus;
+  page_count: number;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  pages: ImportPageInfo[];
+}
+
+export interface ImportJobSummary {
+  id: string;
+  status: ImportJobStatus;
+  page_count: number;
+  pages_done: number;
+  pages_failed: number;
+  kit_name: string | null;
+  created_at: string;
 }
