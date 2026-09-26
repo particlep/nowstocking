@@ -79,13 +79,19 @@ export async function verifyLogin(env: Env, rawEmail: string, rawCode: string): 
   const code = rawCode.replace(/\D/g, '');
   const key = secret(env);
   const now = new Date().toISOString();
-  const row = await env.DB.prepare(
-    'SELECT id, code_hash, attempts FROM login_codes WHERE email = ? AND used_at IS NULL AND expires_at > ? ORDER BY id DESC LIMIT 1',
-  ).bind(email, now).first<{ id: number; code_hash: string; attempts: number }>();
-  if (!row) throw new AuthError('That code has expired. Ask for a new one.');
-  if (row.attempts >= MAX_ATTEMPTS) throw new AuthError('Too many wrong tries. Ask for a new code.', 429);
-  if (code.length !== 6 || !sameString(await hmac(key, `${email}:${code}`), row.code_hash)) {
-    await env.DB.prepare('UPDATE login_codes SET attempts = attempts + 1 WHERE id = ?').bind(row.id).run();
+  // Any unexpired code works, not just the newest: asking again shouldn't kill a code that's still on its way.
+  // Wrong tries count across all of them, so asking for more codes doesn't buy more guesses.
+  const { results: active } = await env.DB.prepare(
+    'SELECT id, code_hash, attempts FROM login_codes WHERE email = ? AND used_at IS NULL AND expires_at > ? ORDER BY id DESC',
+  ).bind(email, now).all<{ id: number; code_hash: string; attempts: number }>();
+  if (!active.length) throw new AuthError('That code has expired. Ask for a new one.');
+  if (active.reduce((sum, r) => sum + r.attempts, 0) >= MAX_ATTEMPTS) {
+    throw new AuthError('Too many wrong tries. Ask for a new code in a few minutes.', 429);
+  }
+  const hash = code.length === 6 ? await hmac(key, `${email}:${code}`) : '';
+  const row = active.find((r) => hash && sameString(hash, r.code_hash));
+  if (!row) {
+    await env.DB.prepare('UPDATE login_codes SET attempts = attempts + 1 WHERE id = ?').bind(active[0].id).run();
     throw new AuthError("That code isn't right.");
   }
 

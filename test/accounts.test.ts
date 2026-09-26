@@ -63,6 +63,31 @@ describe('email sign-in', () => {
     expect(locked.res.status).toBe(429);
   });
 
+  it('still accepts an earlier code after a new one is sent', async () => {
+    const address = email('twice');
+    const first = await req(EMAIL_MODE, '/api/auth/start', { method: 'POST', body: JSON.stringify({ email: address }) });
+    await req(EMAIL_MODE, '/api/auth/start', { method: 'POST', body: JSON.stringify({ email: address }) });
+    const verify = await req(EMAIL_MODE, '/api/auth/verify', { method: 'POST', body: JSON.stringify({ email: address, code: first.body.code }) });
+    expect(verify.res.status).toBe(200);
+  });
+
+  it("doesn't give extra guesses for asking for more codes", async () => {
+    const address = email('more-guesses');
+    const codes: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      codes.push(String((await req(EMAIL_MODE, '/api/auth/start', { method: 'POST', body: JSON.stringify({ email: address }) })).body.code));
+    }
+    let wrong = 0;
+    for (let n = 0; wrong < 5; n++) {
+      const guess = String(n).padStart(6, '0');
+      if (codes.includes(guess)) continue;
+      expect((await req(EMAIL_MODE, '/api/auth/verify', { method: 'POST', body: JSON.stringify({ email: address, code: guess }) })).res.status).toBe(400);
+      wrong++;
+    }
+    const locked = await req(EMAIL_MODE, '/api/auth/verify', { method: 'POST', body: JSON.stringify({ email: address, code: codes[2] }) });
+    expect(locked.res.status).toBe(429);
+  });
+
   it('limits how many codes one address can request', async () => {
     const address = email('spam');
     for (let i = 0; i < 5; i++) {

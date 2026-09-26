@@ -8,7 +8,9 @@ export default defineConfig({
     preact(),
     cloudflare(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // "prompt": a new version waits until the user reloads, or the app next starts cold. Auto-reloading
+      // would wipe half-done work, such as a sign-in waiting for its emailed code.
+      registerType: 'prompt',
       // Access sits in front of the manifest too; send the session cookie when fetching it.
       useCredentials: true,
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],

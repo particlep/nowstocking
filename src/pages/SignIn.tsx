@@ -6,11 +6,32 @@ import { api } from '../data/api';
 import { sync } from '../data/sync';
 import { refreshIdentity } from '../data/workspace';
 
+// Remember a sent code across a reload: people switch to Mail to read it, and iOS may reload the app meanwhile.
+const PENDING_KEY = 'ns-signin';
+const PENDING_MS = 10 * 60 * 1000; // codes last 10 minutes
+
+function loadPending(): string | null {
+  try {
+    const p = JSON.parse(localStorage.getItem(PENDING_KEY) ?? 'null') as { email: string; at: number } | null;
+    return p && Date.now() - p.at < PENDING_MS ? p.email : null;
+  } catch {
+    return null;
+  }
+}
+
+function savePending(email: string | null) {
+  try {
+    if (email) localStorage.setItem(PENDING_KEY, JSON.stringify({ email, at: Date.now() }));
+    else localStorage.removeItem(PENDING_KEY);
+  } catch { /* storage unavailable: the screen just won't survive a reload */ }
+}
+
 /** Email one-time-code sign-in (installs with AUTH_MODE = "email"). */
 export function SignInPage() {
   const { route } = useLocation();
-  const [step, setStep] = useState<'email' | 'code'>('email');
-  const [email, setEmail] = useState('');
+  const pending = loadPending();
+  const [step, setStep] = useState<'email' | 'code'>(pending ? 'code' : 'email');
+  const [email, setEmail] = useState(pending ?? '');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +62,7 @@ export function SignInPage() {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), turnstile: token ?? undefined }),
       });
+      savePending(email.trim());
       setStep('code');
     } finally {
       // The token was used up either way.
@@ -50,6 +72,7 @@ export function SignInPage() {
 
   const verify = () => run(async () => {
     await api('/api/auth/verify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: email.trim(), code }) });
+    savePending(null);
     await refreshIdentity();
     void sync();
     route('/', true);
@@ -86,7 +109,9 @@ export function SignInPage() {
       ) : (
         <form class="card stack" onSubmit={(e) => { e.preventDefault(); void verify(); }}>
           <strong>Check your email</strong>
-          <p class="muted" style={{ margin: 0 }}>We sent a 6-digit code to {email.trim()}.</p>
+          <p class="muted" style={{ margin: 0 }}>
+            We sent a 6-digit code to {email.trim()}. It works for 10 minutes, and so do any earlier codes you asked for.
+          </p>
           <label class="field">
             <span>Code</span>
             <input
@@ -97,7 +122,7 @@ export function SignInPage() {
           </label>
           <button class="btn primary lg" type="submit" disabled={busy || code.length !== 6}>{busy ? 'Checking…' : 'Sign in'}</button>
           <div class="row">
-            <button class="btn small" type="button" onClick={() => { setStep('email'); setCode(''); }}>Use a different email</button>
+            <button class="btn small" type="button" onClick={() => { savePending(null); setStep('email'); setCode(''); }}>Use a different email</button>
             <button class="btn small" type="button" disabled={busy} onClick={() => { setStep('email'); setCode(''); }}>Send a new code</button>
           </div>
         </form>
