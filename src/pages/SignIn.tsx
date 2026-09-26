@@ -104,6 +104,11 @@ export function SignInPage() {
           <button class="btn primary lg" type="submit" disabled={busy || !email.includes('@') || (!!sitekey && !token)}>
             {busy ? 'Sending…' : 'Email me a code'}
           </button>
+          <button
+            class="btn small" type="button" style={{ alignSelf: 'flex-start' }}
+            disabled={!email.includes('@')}
+            onClick={() => { savePending(email.trim()); setError(null); setStep('code'); }}
+          >I already have a code</button>
           <p class="meta" style={{ margin: 0 }}>No password. New here? Signing in creates your workshop.</p>
         </form>
       ) : (
