@@ -22,8 +22,13 @@
     "ACCESS_TEAM_DOMAIN": "https://drinkmorecoffee.cloudflareaccess.com",
     "ACCESS_AUD": "54134992e542d3184a0d89d3dc8d596af3ddd4b00a513d023081807922c6547a",
     "IMPORT_MODEL": "claude-opus-5",
-    // Sender for emailed label PDFs. The domain is onboarded to Cloudflare Email Sending.
-    "EMAIL_FROM": "labels@nowstocking.com",
+    // Sender for label PDFs, sign-in codes and invites. The domain must be onboarded to Cloudflare Email Sending.
+    "EMAIL_FROM": "no-reply@nowstocking.com",
+    // "access": sign in through Cloudflare Access (self-hosted default).
+    // "email": sign in with a one-time code sent by email (hosted). Needs the AUTH_SECRET secret.
+    "AUTH_MODE": "access",
+    // Photo pages Claude may read per account per month. 0 = unlimited.
+    "PHOTO_PAGES_PER_MONTH": "0",
     // "single": self-hosted, everyone who gets past Access joins one account (first person is owner).
     // "open": hosted, each new user gets their own account.
     "SIGNUP_MODE": "single"

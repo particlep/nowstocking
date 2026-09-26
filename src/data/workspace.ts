@@ -6,6 +6,8 @@ import { getGlobal, setGlobal, useWarehouseDb } from './idb';
 import { loadFromIdb, me, resetStore } from './store';
 
 export const identity = signal<MeResponse | null>(null);
+/** How this install signs people in. "email" shows the app's own sign-in screen. */
+export const authMode = signal<'access' | 'email'>('access');
 export const warehouseId = signal<string | null>(null);
 
 export const current = computed<{ account: AccountInfo; warehouse: WarehouseInfo } | null>(() => {
@@ -39,6 +41,10 @@ export async function openWarehouse(id: string) {
 
 /** Startup, works offline: the last identity and warehouse this phone saw. */
 export async function loadIdentity() {
+  authMode.value = await getGlobal<'access' | 'email'>('authMode', 'access');
+  void api<{ mode: 'access' | 'email' }>('/api/auth/config')
+    .then((r) => { authMode.value = r.mode; return setGlobal('authMode', r.mode); })
+    .catch(() => {});
   identity.value = await getGlobal<MeResponse | null>('identity', null);
   if (identity.value) me.value = identity.value.user.email;
   const saved = await getGlobal<string | null>('warehouseId', null);
@@ -54,5 +60,20 @@ export async function refreshIdentity() {
   const ids = r.accounts.flatMap((a) => a.warehouses.map((w) => w.id));
   if (!warehouseId.value || !ids.includes(warehouseId.value)) {
     if (ids[0]) await openWarehouse(ids[0]);
+  }
+}
+
+/** Sign out (email sign-in only). Removes this phone's copies of the warehouses, so the next person doesn't see them. */
+export async function signOut() {
+  await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+  const ids = allWarehouses.value.map((w) => w.id);
+  resetStore();
+  await useWarehouseDb(null);
+  warehouseId.value = null;
+  identity.value = null;
+  await setGlobal('identity', null);
+  await setGlobal('warehouseId', null);
+  for (const id of ids) {
+    try { indexedDB.deleteDatabase(`nowstocking-w-${id}`); } catch { /* ignore */ }
   }
 }

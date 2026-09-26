@@ -82,7 +82,17 @@ One PWA on my iPhone that does lookup, scanning, put-away, receiving, and pick l
 - **Labels:** labels encode `https://<host>/w/<warehouse>/loc/<code>`. Opening one switches the app to that warehouse.
 - **Phone:** the phone keeps one IndexedDB per warehouse, plus an app-level store for identity and the open warehouse.
   More → Warehouses switches, adds (owner/admin), renames (owner/admin) and archives (owner) warehouses.
-- **Later (hosted, step 2):** email one-time-code sign-in, invites and member management, usage limits, then billing.
+- **Sign-in:** `AUTH_MODE=access` (Cloudflare Access, the self-hosted default) or `email`. Email sign-in sends a
+  6-digit code through Email Sending and sets a 90-day `HttpOnly` session cookie. Codes are stored as HMAC hashes, expire
+  in 10 minutes, and allow 5 tries; each address can request 5 codes an hour. In email mode, writes from another origin
+  are refused.
+- **Members:** invites are keyed by email and last 30 days. Signing in with an invited email joins the account with the
+  invited role. Owners change roles, admins remove members, anyone can leave, and the last owner can't be removed.
+  Screen: More → Members.
+- **Usage:** photo pages sent to Claude are counted per account per month. `PHOTO_PAGES_PER_MONTH` caps them (0 means
+  unlimited). If a read would pass the cap, it's refused and the pages stay ready to retry. Settings shows the month's
+  usage.
+- **Later:** hosted sign-up at app.nowstocking.com, then billing.
 
 ## Data Model (per warehouse)
 

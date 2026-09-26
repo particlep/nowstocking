@@ -4,7 +4,7 @@ import { db, getMeta, setMeta } from './idb';
 import {
   getServerRows, lastSyncedAt, outbox, rejected, setServerRows, syncError, syncState, type Tables,
 } from './store';
-import { refreshIdentity, warehouseId, wpath } from './workspace';
+import { authMode, refreshIdentity, warehouseId, wpath } from './workspace';
 
 export { api, SignInRequired };
 
@@ -134,6 +134,12 @@ export function startSyncLoop() {
 }
 
 /** Full page load through Access, which shows its login and returns here. */
+/** Access: a full page load shows its login and returns here. Email sign-in: the app's own screen. */
 export function signIn() {
-  window.location.reload();
+  if (authMode.value === 'email') {
+    history.pushState(null, '', '/signin');
+    dispatchEvent(new PopStateEvent('popstate'));
+  } else {
+    window.location.reload();
+  }
 }

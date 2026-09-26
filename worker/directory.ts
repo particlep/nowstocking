@@ -1,5 +1,6 @@
 // D1 directory: users, accounts, memberships, warehouses.
 import type { AccountInfo, MeResponse, Role } from '../shared/directory';
+import { acceptInvites } from './members';
 
 const now = () => new Date().toISOString();
 
@@ -29,12 +30,13 @@ async function createAccount(db: D1Database, userId: string, name: string, role:
 }
 
 /**
- * Make sure the user exists and belongs somewhere.
+ * Make sure the user exists and belongs somewhere. Pending invites for their email are accepted first.
  * - single (self-hosted): everyone who gets past sign-in joins the one account. The first person is its owner.
  * - open (hosted): a new user gets their own account and first warehouse.
  */
 export async function provision(db: D1Database, email: string, mode: 'single' | 'open'): Promise<string> {
   const userId = await upsertUser(db, email);
+  await acceptInvites(db, userId, email.toLowerCase());
   const has = await db.prepare('SELECT 1 FROM memberships WHERE user_id = ? LIMIT 1').bind(userId).first();
   if (has) return userId;
 

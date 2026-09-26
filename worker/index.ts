@@ -1,13 +1,17 @@
 import { Hono, type Context } from 'hono';
-import { WAREHOUSE_ID, canManage } from '../shared/directory';
+import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
+import { WAREHOUSE_ID, canManage, type Role } from '../shared/directory';
 import type { ImportKind } from '../shared/importTypes';
 import { TABLE_NAMES, type Mutation, type TableName } from '../shared/schema';
-import { requireAccess, type AppEnv } from './auth';
+import { authMode, requireAccess, type AppEnv } from './auth';
 import {
   accountRole, archiveWarehouse, createWarehouse, describe, provision, renameWarehouse, warehouseRole,
 } from './directory';
 import { emailLabels, EmailError } from './email';
 import { getImportImage, IMAGE_TYPES, JOB_ID, MAX_IMAGE_BYTES, type ImageType } from './import';
+import { cancelInvite, invite, listMembers, MemberError, removeMember, renameAccount, setRole } from './members';
+import { AuthError, EMAIL_RE, endSession, SESSION_COOKIE, SESSION_MAX_AGE, startLogin, verifyLogin } from './session';
+import { getUsage, recordPhotoPages } from './usage';
 
 const app = new Hono<AppEnv>().basePath('/api');
 
@@ -23,6 +27,41 @@ function fromRpcError(c: Context<AppEnv>, e: unknown) {
   if (m) return c.json({ error: m[2] }, Number(m[1]) as 400 | 404 | 409);
   throw e;
 }
+
+// ---- Sign-in (AUTH_MODE = "email") ----
+
+app.get('/auth/config', (c) => c.json({ mode: authMode(c.env) }));
+
+app.post('/auth/start', async (c) => {
+  if (authMode(c.env) !== 'email') return c.json({ error: 'This install signs in through Cloudflare Access.' }, 400);
+  const body = await c.req.json<{ email?: string }>().catch(() => ({}) as { email?: string });
+  try {
+    return c.json({ ok: true, ...(await startLogin(c.env, body.email ?? '')) });
+  } catch (e) {
+    if (e instanceof AuthError) return c.json({ error: e.message }, e.status);
+    throw e;
+  }
+});
+
+app.post('/auth/verify', async (c) => {
+  if (authMode(c.env) !== 'email') return c.json({ error: 'This install signs in through Cloudflare Access.' }, 400);
+  const body = await c.req.json<{ email?: string; code?: string }>().catch(() => ({}) as { email?: string; code?: string });
+  try {
+    const { token, email } = await verifyLogin(c.env, body.email ?? '', body.code ?? '');
+    setCookie(c, SESSION_COOKIE, token, { httpOnly: true, secure: true, sameSite: 'Lax', path: '/', maxAge: SESSION_MAX_AGE });
+    return c.json({ ok: true, email });
+  } catch (e) {
+    if (e instanceof AuthError) return c.json({ error: e.message }, e.status);
+    throw e;
+  }
+});
+
+app.post('/auth/logout', async (c) => {
+  const token = getCookie(c, SESSION_COOKIE);
+  if (token) await endSession(c.env, token);
+  deleteCookie(c, SESSION_COOKIE, { path: '/', secure: true });
+  return c.json({ ok: true });
+});
 
 // ---- Directory ----
 
@@ -42,6 +81,101 @@ app.post('/accounts/:accountId/warehouses', async (c) => {
   if (!name) return c.json({ error: 'A name is required.' }, 400);
   return c.json({ id: await createWarehouse(c.env.DB, c.req.param('accountId'), name) });
 });
+
+// ---- Account: members, invites, usage ----
+
+/** The caller's user id and role in :accountId, or a 404 for accounts they aren't in. */
+async function membership(c: Context<AppEnv>) {
+  const row = await c.env.DB.prepare(
+    'SELECT u.id AS user_id, m.role FROM users u JOIN memberships m ON m.user_id = u.id WHERE u.email = ? AND m.account_id = ?',
+  ).bind(c.get('email'), c.req.param('accountId')).first<{ user_id: string; role: Role }>();
+  return row;
+}
+
+const memberRoute = async (c: Context<AppEnv>, fn: (me: { user_id: string; role: Role }, accountId: string) => Promise<Response>) => {
+  const me = await membership(c);
+  if (!me) return c.json({ error: 'not found' }, 404);
+  try {
+    return await fn(me, c.req.param('accountId')!);
+  } catch (e) {
+    if (e instanceof MemberError) return c.json({ error: e.message }, e.status);
+    throw e;
+  }
+};
+
+app.patch('/accounts/:accountId', (c) =>
+  memberRoute(c, async (me, accountId) => {
+    if (!canManage(me.role)) return c.json({ error: 'Only owners and admins can rename the account.' }, 403);
+    const name = (await c.req.json<{ name?: string }>().catch(() => ({}) as { name?: string })).name?.trim().slice(0, 80);
+    if (!name) return c.json({ error: 'A name is required.' }, 400);
+    await renameAccount(c.env.DB, accountId, name);
+    return c.json({ ok: true });
+  }),
+);
+
+app.get('/accounts/:accountId/members', (c) =>
+  memberRoute(c, async (me, accountId) => c.json({ ...(await listMembers(c.env.DB, accountId)), me: me.user_id, role: me.role })),
+);
+
+app.post('/accounts/:accountId/invites', (c) =>
+  memberRoute(c, async (me, accountId) => {
+    if (!canManage(me.role)) return c.json({ error: 'Only owners and admins can invite people.' }, 403);
+    const body = await c.req.json<{ email?: string; role?: string }>().catch(() => ({}) as { email?: string; role?: string });
+    const email = (body.email ?? '').trim().toLowerCase();
+    const role = body.role === 'admin' ? 'admin' : 'member';
+    if (!EMAIL_RE.test(email)) return c.json({ error: 'Enter a valid email address.' }, 400);
+    await invite(c.env.DB, accountId, email, role, c.get('email'));
+
+    const account = await c.env.DB.prepare('SELECT name FROM accounts WHERE id = ?').bind(accountId).first<{ name: string }>();
+    const url = new URL(c.req.url).origin;
+    const how = authMode(c.env) === 'email'
+      ? `Open ${url} and sign in with ${email}.`
+      : `Open ${url} and sign in with ${email}. If you can't get in, ask ${c.get('email')} to add you to the sign-in policy.`;
+    let emailed = false;
+    if ((c.env as { EXPOSE_LOGIN_CODES?: string }).EXPOSE_LOGIN_CODES !== 'true') {
+      try {
+        await c.env.EMAIL.send({
+          to: email,
+          from: { email: c.env.EMAIL_FROM, name: 'NowStocking' },
+          subject: `${c.get('email')} invited you to ${account?.name ?? 'a workshop'} on NowStocking`,
+          text: `${c.get('email')} invited you to ${account?.name ?? 'their workshop'} on NowStocking, as ${role === 'admin' ? 'an admin' : 'a member'}.\n\n${how}`,
+        });
+        emailed = true;
+      } catch (e) {
+        console.error('invite email failed', e);
+      }
+    }
+    return c.json({ ok: true, emailed });
+  }),
+);
+
+app.delete('/accounts/:accountId/invites/:email', (c) =>
+  memberRoute(c, async (me, accountId) => {
+    if (!canManage(me.role)) return c.json({ error: 'Only owners and admins can cancel invites.' }, 403);
+    await cancelInvite(c.env.DB, accountId, decodeURIComponent(c.req.param('email')!).toLowerCase());
+    return c.json({ ok: true });
+  }),
+);
+
+app.patch('/accounts/:accountId/members/:userId', (c) =>
+  memberRoute(c, async (me, accountId) => {
+    const role = (await c.req.json<{ role?: string }>().catch(() => ({}) as { role?: string })).role;
+    if (role !== 'owner' && role !== 'admin' && role !== 'member') return c.json({ error: 'Unknown role.' }, 400);
+    await setRole(c.env.DB, accountId, me.role, c.req.param('userId')!, role);
+    return c.json({ ok: true });
+  }),
+);
+
+app.delete('/accounts/:accountId/members/:userId', (c) =>
+  memberRoute(c, async (me, accountId) => {
+    await removeMember(c.env.DB, accountId, { userId: me.user_id, role: me.role }, c.req.param('userId')!);
+    return c.json({ ok: true });
+  }),
+);
+
+app.get('/accounts/:accountId/usage', (c) =>
+  memberRoute(c, async (_me, accountId) => c.json(await getUsage(c.env, accountId))),
+);
 
 // ---- One warehouse: /api/w/:wid/... ----
 
@@ -151,8 +285,14 @@ w.put('/import/jobs/:id/pages/:page', (c) =>
 w.post('/import/jobs/:id/start', (c) =>
   withJob(c, async (jobId) => {
     const body = await c.req.json<{ pages?: number[] }>().catch(() => ({}) as { pages?: number[] });
-    const { id: wid, stub } = c.get('warehouse');
+    const { id: wid, stub, accountId } = c.get('warehouse');
     const pages = await stub.startReading(jobId, Array.isArray(body.pages) ? body.pages.map(Number) : undefined);
+    try {
+      await recordPhotoPages(c.env, accountId, pages.length);
+    } catch (e) {
+      await stub.cancelReading(jobId, pages);
+      throw e;
+    }
     try {
       await c.env.IMPORT_WORKFLOW.create({ id: `${jobId}-${Date.now()}`, params: { warehouseId: wid, jobId, pages } });
     } catch (e) {

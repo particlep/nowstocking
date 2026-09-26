@@ -89,8 +89,24 @@ Each warehouse's data lives in its own Durable Object, so one warehouse can neve
 the D1 directory on every request to decide who may open which warehouse. Label QR codes include the warehouse
 (`/w/<id>/loc/B03`), so labels from two builds never collide.
 
-A self-hosted install runs with `SIGNUP_MODE = "single"`. Everyone who gets past Access joins one account, and the first
-person to sign in is its owner. The hosted service uses `"open"`, where each new user gets their own account.
+Owners and admins invite people by email from **More → Members**. Signing in with an invited address joins that account
+with the invited role. Owners change roles, admins remove members, and anyone can leave. An account always keeps at least
+one owner.
+
+### Configuration
+
+All of these are `vars` in `wrangler.jsonc`:
+
+| Setting | Self-hosted default | Hosted |
+|---|---|---|
+| `AUTH_MODE` | `"access"`: sign in through Cloudflare Access | `"email"`: a one-time code sent by email, then a 90-day session cookie |
+| `SIGNUP_MODE` | `"single"`: everyone who can sign in joins one account, and the first person is its owner | `"open"`: each new user gets their own account |
+| `PHOTO_PAGES_PER_MONTH` | `"0"`: no limit | Photo pages Claude may read per account each month |
+| `EMAIL_FROM` | Sender for label PDFs, invites and sign-in codes | Same |
+
+Email sign-in also needs a secret: `openssl rand -base64 48 | npx wrangler secret put AUTH_SECRET`. Codes and session
+tokens are stored only as hashes. Codes expire after 10 minutes and lock after 5 wrong tries, and each address can
+request 5 codes an hour. With email sign-in, don't put Access in front of the app.
 
 ## Project layout
 
@@ -211,6 +227,9 @@ Photo import needs `ANTHROPIC_API_KEY` in `.dev.vars`. Workflows, D1 and R2 all 
 [Cloudflare Vitest plugin](https://developers.cloudflare.com/workers/testing/vitest-integration/), inside `workerd`,
 with the D1 migrations applied to a fresh local database:
 
+- **`test/accounts.test.ts`**: email sign-in.
+  - Codes work, wrong codes lock out, requests are rate-limited, sign-out ends the session, and cross-site writes are refused.
+  - Invites join the right account with the right role, roles are enforced, and monthly photo limits apply.
 - **`test/worker.test.ts`**: the API end to end.
   - Sign-in refuses unconfigured and tokenless requests.
   - Self-hosted and hosted sign-up work, and roles are enforced.

@@ -3,7 +3,9 @@ import { hidesTabs, TabBar } from './components/chrome';
 import { PhotoViewer } from './components/PhotoViewer';
 import { PullToRefresh } from './components/PullToRefresh';
 import { syncError, syncState } from './data/store';
-import { warehouseId } from './data/workspace';
+import { authMode, warehouseId } from './data/workspace';
+import { MembersPage } from './pages/Members';
+import { SignInPage } from './pages/SignIn';
 import { signIn } from './data/sync';
 import { AddItemPage } from './pages/AddItem';
 import { ImportListPage } from './pages/Import';
@@ -36,12 +38,14 @@ function SignInBanner() {
 
 function Shell({ children }: { children: preact.ComponentChildren }) {
   const { path } = useLocation();
-  return <div class={`app${hidesTabs(path) ? ' no-tabs' : ''}`}>{warehouseId.value ? children : <FirstRun />}</div>;
+  const show = warehouseId.value || path === '/signin';
+  return <div class={`app${hidesTabs(path) ? ' no-tabs' : ''}`}>{show ? children : <FirstRun />}</div>;
 }
 
 /** Before this phone has ever loaded a warehouse. */
 function FirstRun() {
   const state = syncState.value;
+  if (state === 'signin' && authMode.value === 'email') return <SignInPage />;
   return (
     <main class="page stack" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 48px)', textAlign: 'center' }}>
       <h1 class="large-title">NowStocking</h1>
@@ -65,6 +69,8 @@ export function App() {
           <Route path="/loc/:code" component={LocationDetailPage} />
           <Route path="/w/:wid/loc/:code" component={WarehouseLocationPage} />
           <Route path="/warehouses" component={WarehousesPage} />
+          <Route path="/members" component={MembersPage} />
+          <Route path="/signin" component={SignInPage} />
           <Route path="/item/new" component={AddItemPage} />
           <Route path="/item/:id" component={ItemDetailPage} />
           <Route path="/putaway" component={PutAwayPage} />
