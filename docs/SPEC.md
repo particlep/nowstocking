@@ -97,7 +97,14 @@ One PWA on my iPhone that does lookup, scanning, put-away, receiving, and pick l
 - **Usage:** photo pages sent to Claude are counted per account per month. `PHOTO_PAGES_PER_MONTH` caps them (0 means
   unlimited). If a read would pass the cap, it's refused and the pages stay ready to retry. Settings shows the month's
   usage.
-- **Later:** hosted sign-up at app.nowstocking.com, then billing.
+- **Delete account (Settings):** needs the user to type DELETE. Accounts where the user is the only member are erased:
+  each warehouse's Durable Object storage, its R2 photos, invites, usage and the account. In shared accounts the user
+  leaves, and their email is replaced with "deleted user" in each warehouse's rows and history. Deletion is refused if
+  the user is the only owner of an account other people use. Sessions, sign-in codes, invites to them, and the user row
+  are removed. Endpoint: `POST /api/me/delete`.
+- **Legal:** nowstocking.com/privacy and /terms (site/public). The hosted sign-in screen and Settings link to them
+  through `TERMS_URL` and `PRIVACY_URL`. privacy@nowstocking.com forwards through Cloudflare Email Routing.
+- **Later:** billing.
 
 ## Data Model (per warehouse)
 

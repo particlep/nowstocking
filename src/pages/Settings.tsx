@@ -8,7 +8,8 @@ import {
   lastSyncedAt, me, outbox, pendingCount, rejected, syncError, syncState,
 } from '../data/store';
 import { fullResync, signIn, sync } from '../data/sync';
-import { authMode, current, signOut, wpath } from '../data/workspace';
+import { authMode, current, legal, signOut, wpath } from '../data/workspace';
+import { DeleteAccount } from '../components/DeleteAccount';
 
 export function SettingsPage() {
   const { route } = useLocation();
@@ -88,6 +89,16 @@ export function SettingsPage() {
         <button class="btn block danger" style={{ marginTop: '24px' }} onClick={async () => { await signOut(); route('/signin', true); }}>
           Sign out
         </button>
+      )}
+
+      <div class="section-title">Account</div>
+      <DeleteAccount />
+      {(legal.value.terms || legal.value.privacy) && (
+        <p class="meta center">
+          {legal.value.terms && <a href={legal.value.terms} target="_blank" rel="noreferrer">Terms</a>}
+          {legal.value.terms && legal.value.privacy && ' · '}
+          {legal.value.privacy && <a href={legal.value.privacy} target="_blank" rel="noreferrer">Privacy Policy</a>}
+        </p>
       )}
     </Page>
   );

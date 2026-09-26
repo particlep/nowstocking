@@ -46,7 +46,7 @@ afterEach(() => vi.restoreAllMocks());
 describe('Turnstile on email sign-in', () => {
   it('tells the app the sitekey', async () => {
     const res = await app.fetch(new Request(`${BASE}/api/auth/config`), WITH_TURNSTILE);
-    expect(await res.json()).toEqual({ mode: 'email', turnstileSitekey: 'test-sitekey' });
+    expect(await res.json()).toMatchObject({ mode: 'email', turnstileSitekey: 'test-sitekey' });
   });
 
   it('sends a code only when the check passes, for this action and hostname', async () => {

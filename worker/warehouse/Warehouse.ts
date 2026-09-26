@@ -184,6 +184,28 @@ export class Warehouse extends DurableObject<Env> {
     this.sql.exec(`UPDATE import_jobs SET status = 'committed', updated_at = ? WHERE id = ?`, new Date().toISOString(), jobId);
   }
 
+  // ---- Account deletion ----
+
+  /**
+   * Erase this warehouse's whole database. Used when its account is deleted. The object is left as an empty
+   * warehouse (just the schema), so a stray later call gets nothing back instead of an error.
+   */
+  async destroy() {
+    await this.ctx.storage.deleteAll();
+    migrate(this.sql);
+  }
+
+  /** A departing user's email is replaced in history; their edits stay, since the warehouse still uses them. */
+  anonymize(email: string, replacement = 'deleted user') {
+    this.ctx.storage.transactionSync(() => {
+      for (const t of ['kits', 'locations', 'items', 'placements', 'pick_lists', 'pick_list_lines', 'consumptions']) {
+        this.sql.exec(`UPDATE ${t} SET updated_by = ? WHERE updated_by = ?`, replacement, email);
+      }
+      this.sql.exec('UPDATE change_log SET changed_by = ? WHERE changed_by = ?', replacement, email);
+      this.sql.exec('UPDATE import_jobs SET created_by = ? WHERE created_by = ?', replacement, email);
+    });
+  }
+
   deleteJob(jobId: string) {
     this.ctx.storage.transactionSync(() => {
       this.sql.exec('DELETE FROM import_pages WHERE job_id = ?', jobId);

@@ -106,6 +106,7 @@ All of these are `vars` in `wrangler.jsonc`:
 | `EMAIL_FROM` | Sender for label PDFs, invites and sign-in codes | Same |
 | `TURNSTILE_SITEKEY` | `""`: off | A [Turnstile](https://developers.cloudflare.com/turnstile/) sitekey. The bot check runs on "Email me a code" |
 | `TURNSTILE_HOSTNAMES` | `""` | The site's hostnames, comma-separated. A token from any other hostname is refused |
+| `TERMS_URL`, `PRIVACY_URL` | `""`: hidden | Links shown on the sign-in screen and in Settings |
 
 With Turnstile on, also set the widget's secret: `npx wrangler secret put TURNSTILE_SECRET`. The Worker checks every
 token with Cloudflare, requires the `signin` action and a listed hostname, and refuses the request if Cloudflare can't be

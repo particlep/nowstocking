@@ -8,6 +8,8 @@ import { loadFromIdb, me, resetStore } from './store';
 export const identity = signal<MeResponse | null>(null);
 /** How this install signs people in. "email" shows the app's own sign-in screen. */
 export const authMode = signal<'access' | 'email'>('access');
+/** Terms and privacy links for this install (the hosted service sets them). */
+export const legal = signal<{ terms: string | null; privacy: string | null }>({ terms: null, privacy: null });
 export const warehouseId = signal<string | null>(null);
 
 export const current = computed<{ account: AccountInfo; warehouse: WarehouseInfo } | null>(() => {
@@ -43,8 +45,12 @@ export async function openWarehouse(id: string) {
 export async function loadIdentity() {
   authMode.value = await getGlobal<'access' | 'email'>('authMode', 'access');
   // Wait for the answer (offline it fails fast), so the right sign-in screen shows from the start.
-  await api<{ mode: 'access' | 'email' }>('/api/auth/config')
-    .then((r) => { authMode.value = r.mode; return setGlobal('authMode', r.mode); })
+  await api<{ mode: 'access' | 'email'; terms?: string | null; privacy?: string | null }>('/api/auth/config')
+    .then((r) => {
+      authMode.value = r.mode;
+      legal.value = { terms: r.terms ?? null, privacy: r.privacy ?? null };
+      return setGlobal('authMode', r.mode);
+    })
     .catch(() => {});
   identity.value = await getGlobal<MeResponse | null>('identity', null);
   if (identity.value) me.value = identity.value.user.email;

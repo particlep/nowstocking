@@ -4,7 +4,7 @@ import { LogoMark } from '../components/icons';
 import { Turnstile } from '../components/Turnstile';
 import { api } from '../data/api';
 import { sync } from '../data/sync';
-import { refreshIdentity } from '../data/workspace';
+import { legal, refreshIdentity } from '../data/workspace';
 
 // Remember a sent code across a reload: people switch to Mail to read it, and iOS may reload the app meanwhile.
 const PENDING_KEY = 'ns-signin';
@@ -133,6 +133,13 @@ export function SignInPage() {
         </form>
       )}
       {error && <p class="banner bad">{error}</p>}
+      {(legal.value.terms || legal.value.privacy) && (
+        <p class="meta center" style={{ fontSize: '13px', margin: 0 }}>
+          By signing in you agree to the {legal.value.terms && <a href={legal.value.terms} target="_blank" rel="noreferrer">Terms</a>}
+          {legal.value.terms && legal.value.privacy && ' and '}
+          {legal.value.privacy && <a href={legal.value.privacy} target="_blank" rel="noreferrer">Privacy Policy</a>}.
+        </p>
+      )}
       <p class="meta center" style={{ fontSize: '12px' }}>Version {__APP_VERSION__}</p>
     </main>
   );

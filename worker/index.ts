@@ -7,6 +7,7 @@ import { authMode, requireAccess, type AppEnv } from './auth';
 import {
   accountRole, archiveWarehouse, createWarehouse, describe, provision, renameWarehouse, warehouseRole,
 } from './directory';
+import { DeleteBlocked, deleteUser } from './deleteAccount';
 import { emailLabels, EmailError } from './email';
 import { getImportImage, IMAGE_TYPES, JOB_ID, MAX_IMAGE_BYTES, type ImageType } from './import';
 import { cancelInvite, invite, listMembers, MemberError, removeMember, renameAccount, setRole } from './members';
@@ -31,7 +32,15 @@ function fromRpcError(c: Context<AppEnv>, e: unknown) {
 
 // ---- Sign-in (AUTH_MODE = "email") ----
 
-app.get('/auth/config', (c) => c.json({ mode: authMode(c.env), turnstileSitekey: turnstileSitekey(c.env) }));
+app.get('/auth/config', (c) => {
+  const env = c.env as { TERMS_URL?: string; PRIVACY_URL?: string };
+  return c.json({
+    mode: authMode(c.env),
+    turnstileSitekey: turnstileSitekey(c.env),
+    terms: env.TERMS_URL || null,
+    privacy: env.PRIVACY_URL || null,
+  });
+});
 
 /** 10 sign-in requests a minute per IP, so the form can't be used to flood inboxes or guess codes. */
 app.use('/auth/:step{start|verify}', async (c, next) => {
@@ -85,6 +94,20 @@ app.get('/me', async (c) => {
   const mode = (c.env.SIGNUP_MODE as string) === 'open' ? 'open' : 'single';
   const userId = await provision(c.env.DB, c.get('email'), mode);
   return c.json(await describe(c.env.DB, userId, c.get('email')));
+});
+
+/** Delete my account. The body must say { "confirm": "DELETE" }. */
+app.post('/me/delete', async (c) => {
+  const body = await c.req.json<{ confirm?: string }>().catch(() => ({}) as { confirm?: string });
+  if (body.confirm !== 'DELETE') return c.json({ error: 'Type DELETE to confirm.' }, 400);
+  try {
+    const summary = await deleteUser(c.env, c.get('email'));
+    deleteCookie(c, SESSION_COOKIE, { path: '/', secure: true });
+    return c.json({ ok: true, ...summary });
+  } catch (e) {
+    if (e instanceof DeleteBlocked) return c.json({ error: e.message }, 409);
+    throw e;
+  }
 });
 
 app.post('/accounts/:accountId/warehouses', async (c) => {
