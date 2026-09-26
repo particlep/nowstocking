@@ -68,22 +68,55 @@ h1 { font-family: var(--display); font-weight: 700; font-size: clamp(52px, 8vw, 
 .fine { margin-top: 18px; font-size: 15px; color: var(--muted); }
 @media (max-width: 880px) { .hero .wrap { grid-template-columns: 1fr; gap: 40px; } .hero { padding-top: 16px; } }
 
-/* Phone mock, drawn in HTML so it stays crisp */
-.phone { width: min(360px, 100%); margin: 0 auto; background: var(--bg); border: 10px solid var(--navy); border-radius: 44px;
-  padding: 28px 16px 0; box-shadow: 0 30px 60px -20px rgb(27 42 65 / 0.35); overflow: hidden; }
-.phone .ph-title { font-family: var(--display); font-weight: 700; font-size: 30px; margin: 0 4px 12px; }
-.ph-search { display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 14px; border-radius: 14px; background: #fff;
-  border: 2px solid var(--navy); font: 600 18px var(--mono); margin-bottom: 14px; }
-.ph-search svg { width: 20px; height: 20px; color: var(--muted); }
-.ph-card { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 16px; background: #fff; border: 1px solid var(--border); margin-bottom: 10px; }
+/* iPhone mock, drawn in HTML/CSS so it stays crisp at any size */
+.iphone {
+  --w: 330px;
+  position: relative; width: min(var(--w), 88vw); aspect-ratio: 9 / 19.5; margin: 0 auto;
+  border-radius: 58px; padding: 11px;
+  background: linear-gradient(145deg, #5b5f66 0%, #2a2d31 22%, #3c4046 50%, #22252a 78%, #5a5e65 100%);
+  box-shadow: 0 0 0 1px #16181b, inset 0 0 2px 1px rgb(255 255 255 / 0.25), 0 40px 80px -30px rgb(27 42 65 / 0.55);
+}
+/* Side buttons: action + volume on the left, power on the right */
+.iphone::before, .iphone::after { content: ''; position: absolute; width: 4px; border-radius: 2px; background: linear-gradient(90deg, #2a2d31, #55595f); }
+.iphone::before { left: -3px; top: 17%; height: 26%;
+  background:
+    linear-gradient(#44484e, #44484e) 0 0 / 100% 12% no-repeat,
+    linear-gradient(#44484e, #44484e) 0 30% / 100% 28% no-repeat,
+    linear-gradient(#44484e, #44484e) 0 100% / 100% 28% no-repeat; }
+.iphone::after { right: -3px; top: 27%; height: 15%; }
+.screen {
+  position: relative; height: 100%; border-radius: 47px; overflow: hidden; background: var(--bg);
+  display: flex; flex-direction: column; box-shadow: 0 0 0 3px #0b0c0e;
+}
+.island { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 31%; height: 31px; border-radius: 20px; background: #000; z-index: 2; }
+/* Time and icons sit centered in the "ears" either side of the island. */
+.statusbar { display: grid; grid-template-columns: 1fr 31% 1fr; align-items: center; justify-items: center; height: 53px; padding: 0 8px; font: 600 15px -apple-system, system-ui, sans-serif; color: #000; flex-shrink: 0; }
+.statusbar > span:first-child { padding-left: 10px; }
+.statusbar .icons { grid-column: 3; }
+.statusbar .icons { display: flex; gap: 6px; align-items: center; }
+.statusbar svg { display: block; }
+.ph-body { flex: 1; min-height: 0; padding: 6px 14px 0; overflow: hidden; }
+.ph-title { font-family: var(--display); font-weight: 700; font-size: 30px; line-height: 1; margin: 6px 2px 12px; }
+.ph-search { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-radius: 13px; background: #fff;
+  border: 2px solid var(--navy); font: 600 17px var(--mono); margin-bottom: 12px; }
+.ph-search svg { width: 18px; height: 18px; color: var(--muted); flex-shrink: 0; }
+.ph-caret { width: 2px; height: 20px; background: var(--accent); margin-left: -6px; }
+.ph-label { font-size: 10px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin: 0 4px 6px; }
+.ph-card { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 15px; background: #fff; border: 1px solid var(--border); margin-bottom: 8px; }
 .ph-card .grow { flex: 1; min-width: 0; }
-.ph-code { font: 600 17px var(--mono); }
-.ph-meta { font-size: 13px; color: var(--muted); }
+.ph-code { font: 600 16px var(--mono); }
+.ph-meta { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tag { display: inline-block; background: var(--navy); color: #fff; font-family: var(--display); font-weight: 700; font-size: 26px; line-height: 1; padding: 6px 10px; border-radius: 8px; white-space: nowrap; }
-.ph-tabs { display: grid; grid-template-columns: repeat(5, 1fr); align-items: end; margin: 18px -16px 0; padding: 8px 8px 14px; background: #fff; border-top: 1px solid var(--border); font-size: 10px; color: var(--muted); text-align: center; }
-.ph-tabs .scan { width: 50px; height: 50px; margin: -26px auto 2px; border-radius: 50%; background: var(--accent); border: 4px solid #fff; display: flex; align-items: center; justify-content: center; color: #fff; }
-.ph-tabs .scan svg { width: 22px; height: 22px; }
+.ph-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 2px; }
+.ph-chips span { font: 600 12px var(--mono); padding: 6px 10px; border-radius: 999px; background: #fff; border: 1px solid #d6d1c6; }
+.ph-tabs { flex-shrink: 0; display: grid; grid-template-columns: repeat(5, 1fr); align-items: end; padding: 6px 6px 0; background: #fff; border-top: 1px solid var(--border); font-size: 10px; color: var(--muted); text-align: center; }
+.ph-tabs > div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.ph-tabs svg { width: 20px; height: 20px; }
+.ph-tabs .scan { width: 48px; height: 48px; margin-top: -24px; border-radius: 50%; background: var(--accent); border: 4px solid #fff; display: flex; align-items: center; justify-content: center; color: #fff; box-shadow: 0 4px 10px rgb(194 65 12 / 0.35); }
+.ph-tabs .scan svg { width: 20px; height: 20px; }
 .ph-tabs .on { color: var(--accent); font-weight: 600; }
+.home-indicator { height: 30px; background: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.home-indicator span { width: 38%; height: 5px; border-radius: 3px; background: #111; }
 
 /* Sections */
 section { padding: 72px 0; }
@@ -135,7 +168,7 @@ footer .grow { flex: 1; min-width: 240px; }
     <nav aria-label="Main">
       <a class="hide-sm" href="#how">How it works</a>
       <a class="hide-sm" href="#features">Features</a>
-      <a href="https://github.com/particlep/rv14a-parts-inventory">GitHub</a>
+      <a href="https://github.com/particlep/nowstocking">GitHub</a>
     </nav>
   </div>
 </header>
@@ -152,11 +185,11 @@ footer .grow { flex: 1; min-width: 240px; }
           shop with no signal.
         </p>
         <div class="actions">
-          <a class="btn primary" href="https://github.com/particlep/rv14a-parts-inventory#self-hosting">
+          <a class="btn primary" href="https://github.com/particlep/nowstocking#self-hosting">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
             Run your own
           </a>
-          <a class="btn" href="https://github.com/particlep/rv14a-parts-inventory">
+          <a class="btn" href="https://github.com/particlep/nowstocking">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.7.3 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></svg>
             View the code
           </a>
@@ -164,28 +197,51 @@ footer .grow { flex: 1; min-width: 240px; }
         <p class="fine">Free and open source (MIT). Built for a Van's RV-14A build, and it works for any kit that ships with a packing list.</p>
       </div>
 
-      <div class="phone" role="img" aria-label="The app's search screen: typing 470ad45 finds rivet AN470AD4-5 in bin B03, and the same part from another kit on shelf S1-B.">
-        <div class="ph-title">Find a part</div>
-        <div class="ph-search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-          470ad45
-        </div>
-        <div class="ph-card">
-          <div class="grow"><div class="ph-code">AN470AD4-5</div><div class="ph-meta">Rivet (LB) · EMP · BAG 1118</div></div>
-          <span class="tag">B03</span>
-        </div>
-        <div class="ph-card">
-          <div class="grow"><div class="ph-code">AN470AD4-5</div><div class="ph-meta">Rivet (LB) · FUSE · BAG 3120</div></div>
-          <span class="tag">S1-B</span>
-        </div>
-        <div class="ph-card">
-          <div class="grow"><div class="ph-code">LP4-3</div><div class="ph-meta">Pop rivet · EMP · 185 of 225 left</div></div>
-          <span class="tag">B07</span>
-        </div>
-        <div class="ph-tabs" aria-hidden="true">
-          <div class="on">Search</div><div>Put away</div>
-          <div><div class="scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10"/></svg></div>Scan</div>
-          <div>Pick</div><div>More</div>
+      <div class="iphone" role="img" aria-label="The app on an iPhone: typing 470ad45 finds rivet AN470AD4-5 in bin B03, and the same part from another kit on shelf S1-B.">
+        <div class="screen" aria-hidden="true">
+          <div class="island"></div>
+          <div class="statusbar">
+            <span>9:41</span>
+            <span class="icons">
+              <svg width="18" height="12" viewBox="0 0 18 12" fill="#000"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+              <svg width="16" height="12" viewBox="0 0 16 12" fill="#000"><path d="M8 2.4c2.3 0 4.4.9 6 2.4l1.2-1.3A10.3 10.3 0 0 0 8 .6 10.3 10.3 0 0 0 .8 3.5L2 4.8a8.6 8.6 0 0 1 6-2.4zm0 3.6c1.3 0 2.5.5 3.4 1.3l1.2-1.3A6.7 6.7 0 0 0 8 4.2c-1.8 0-3.4.7-4.6 1.8l1.2 1.3C5.5 6.5 6.7 6 8 6zm0 3.4c-.7 0-1.3.3-1.8.8L8 12l1.8-1.8c-.5-.5-1.1-.8-1.8-.8z"/></svg>
+              <svg width="27" height="13" viewBox="0 0 27 13"><rect x="0.5" y="0.5" width="23" height="12" rx="3.5" fill="none" stroke="#000" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="9" rx="2" fill="#000"/><path d="M25 4.5v4a2 2 0 0 0 0-4z" fill="#000" fill-opacity="0.45"/></svg>
+            </span>
+          </div>
+          <div class="ph-body">
+            <div class="ph-title">Find a part</div>
+            <div class="ph-search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              470ad45<span class="ph-caret"></span>
+            </div>
+            <div class="ph-label">4 matches</div>
+            <div class="ph-card">
+              <div class="grow"><div class="ph-code">AN470AD4-5</div><div class="ph-meta">Rivet (LB) · EMP · BAG 1118</div></div>
+              <span class="tag">B03</span>
+            </div>
+            <div class="ph-card">
+              <div class="grow"><div class="ph-code">AN470AD4-5</div><div class="ph-meta">Rivet (LB) · FUSE · BAG 3120</div></div>
+              <span class="tag">S1-B</span>
+            </div>
+            <div class="ph-card">
+              <div class="grow"><div class="ph-code">BAG 1118</div><div class="ph-meta">EMP · 1 part inside</div></div>
+              <span class="tag" style="font-size: 20px; padding: 4px 8px;">B03</span>
+            </div>
+            <div class="ph-card">
+              <div class="grow"><div class="ph-code">AN470AD4-4</div><div class="ph-meta">Rivet (LB) · EMP · BAG 1117</div></div>
+              <span class="tag">B02</span>
+            </div>
+            <div class="ph-label" style="margin-top: 14px;">Recent</div>
+            <div class="ph-chips"><span>LP4-3</span><span>1101</span><span>F-01414</span><span>K1000-3</span></div>
+          </div>
+          <div class="ph-tabs">
+            <div class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Search</div>
+            <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7M12 11v10"/></svg>Put away</div>
+            <div><span class="scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10"/></svg></span>Scan</div>
+            <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 6h10M10 12h10M10 18h10M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>Pick</div>
+            <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>More</div>
+          </div>
+          <div class="home-indicator"><span></span></div>
         </div>
       </div>
     </div>
@@ -271,7 +327,7 @@ footer .grow { flex: 1; min-width: 240px; }
           the Claude API with your own key, so Anthropic bills you per page read (well under a dollar a page).
         </p>
         <p>The README walks through every step, starting with <code>npm install</code>.</p>
-        <a class="btn" href="https://github.com/particlep/rv14a-parts-inventory#self-hosting">Read the setup guide</a>
+        <a class="btn" href="https://github.com/particlep/nowstocking#self-hosting">Read the setup guide</a>
       </div>
     </div>
   </section>
@@ -283,7 +339,7 @@ footer .grow { flex: 1; min-width: 240px; }
       NowStocking is open source under the MIT license. It isn't affiliated with or endorsed by Van's Aircraft or any other kit maker.
       Part numbers shown are examples.
     </span>
-    <a href="https://github.com/particlep/rv14a-parts-inventory">GitHub</a>
+    <a href="https://github.com/particlep/nowstocking">GitHub</a>
   </div>
 </footer>
 </body>

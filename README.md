@@ -87,7 +87,7 @@ Workflows are heavier than the free plan's limits comfortably allow. Photo impor
 ### 1. Clone and install
 
 ```sh
-git clone https://github.com/particlep/rv14a-parts-inventory.git nowstocking
+git clone https://github.com/particlep/nowstocking.git nowstocking
 cd nowstocking
 npm install
 npx wrangler login
