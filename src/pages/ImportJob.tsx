@@ -4,7 +4,8 @@ import type { ImportJob } from '../../shared/importTypes';
 import { fmtQty } from '../../shared/inventory';
 import type { ItemType, Op } from '../../shared/schema';
 import { Page } from '../components/chrome';
-import { CheckIcon, ChevronIcon, FlagIcon } from '../components/icons';
+import { CheckIcon, ChevronIcon, FlagIcon, PhotoIcon } from '../components/icons';
+import { openPhoto } from '../components/PhotoViewer';
 import { onRefresh } from '../components/PullToRefresh';
 import { itemFields } from '../data/actions';
 import { clearDraft, draft, loadDraft, mergeJob, needsReview, type DraftRow } from '../data/importDraft';
@@ -88,15 +89,22 @@ export function ImportJobPage() {
         </div>
         <div class="page-bars" aria-hidden="true">
           {job.pages.map((p) => (
-            <a
+            <span
               class={p.status === 'done' ? 'done' : p.status === 'failed' ? 'failed' : p.status === 'reading' ? 'reading' : ''}
-              href={p.image_key ? `/api/import/image/${p.image_key}` : undefined}
-              target="_blank" rel="noreferrer"
               title={`Page ${p.page}: ${p.status}`}
             />
           ))}
         </div>
         {reading > 0 && <div class="meta" style={{ fontSize: '14px' }}>You can lock your phone. Reading continues on the server.</div>}
+        {job.pages.some((p) => p.image_key) && (
+          <div class="chips">
+            {job.pages.filter((p) => p.image_key).map((p) => (
+              <button class="chip" style={{ minHeight: '36px' }} onClick={() => openPhoto(`/api/import/image/${p.image_key}`, `Packing list page ${p.page}`)}>
+                <PhotoIcon />Page {p.page}
+              </button>
+            ))}
+          </div>
+        )}
         {failed.map((p) => <div class="small" style={{ color: 'var(--bad)' }}>Page {p.page}: {p.error}</div>)}
         {failed.length > 0 && <button class="btn small" onClick={() => retry(failed.map((p) => p.page))}>Retry failed page{failed.length === 1 ? '' : 's'}</button>}
         {error && <div class="meta">Couldn't refresh: {error}</div>}

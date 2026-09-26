@@ -3,6 +3,7 @@ import { useLocation, useRoute } from 'preact-iso';
 import type { ImportJob } from '../../shared/importTypes';
 import type { Unit } from '../../shared/schema';
 import { Page } from '../components/chrome';
+import { openPhoto } from '../components/PhotoViewer';
 import { CheckIcon, FlagIcon, PhotoIcon, PlusIcon } from '../components/icons';
 import {
   draft, insertRowAfter, loadDraft, needsReview, removeRow, unitFor, updateRow, type DraftRow,
@@ -75,7 +76,12 @@ export function ImportRowPage() {
       )}
 
       {imageKeys[r.page] ? (
-        <a href={`/api/import/image/${imageKeys[r.page]}`} target="_blank" rel="noreferrer" aria-label={`Open page ${r.page} photo full size`} style={{ display: 'block', position: 'relative' }}>
+        <button
+          type="button"
+          onClick={() => openPhoto(`/api/import/image/${imageKeys[r.page]}`, `Packing list page ${r.page}`)}
+          aria-label={`Open page ${r.page} photo full size`}
+          style={{ display: 'block', position: 'relative', width: '100%', padding: 0, border: 0, background: 'none' }}
+        >
           <img
             class="photo"
             src={`/api/import/image/${imageKeys[r.page]}`}
@@ -83,7 +89,7 @@ export function ImportRowPage() {
             style={{ height: '170px', objectFit: 'cover', objectPosition: `center ${focusY}%` }}
           />
           <span class="badge" style={{ position: 'absolute', right: '10px', bottom: '10px', background: 'rgb(27 42 65 / 0.8)', color: '#fff' }}>Page {r.page} · tap to zoom</span>
-        </a>
+        </button>
       ) : (
         <div class="photo row" style={{ height: '120px', justifyContent: 'center', color: 'var(--muted)' }}><PhotoIcon style={{ width: '28px', height: '28px' }} /></div>
       )}

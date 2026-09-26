@@ -1,5 +1,6 @@
 import { LocationProvider, Route, Router, useLocation } from 'preact-iso';
 import { hidesTabs, TabBar } from './components/chrome';
+import { PhotoViewer } from './components/PhotoViewer';
 import { PullToRefresh } from './components/PullToRefresh';
 import { syncState } from './data/store';
 import { signIn } from './data/sync';
@@ -61,6 +62,7 @@ export function App() {
           <Route default component={SearchPage} />
         </Router>
         <TabBar />
+        <PhotoViewer />
       </Shell>
     </LocationProvider>
   );

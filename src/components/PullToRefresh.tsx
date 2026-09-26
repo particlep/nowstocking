@@ -28,7 +28,7 @@ export function PullToRefresh() {
       if (busy.current || e.touches.length !== 1 || window.scrollY > 0) return;
       const target = e.target as HTMLElement;
       // Leave the camera view and text fields alone.
-      if (target.closest('.scanner, input, textarea, select')) return;
+      if (target.closest('.scanner, input, textarea, select, [role="dialog"]')) return;
       start.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     };
     const onMove = (e: TouchEvent) => {

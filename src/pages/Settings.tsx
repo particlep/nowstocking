@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks';
 import { Page } from '../components/chrome';
+import { ShareFileButton } from '../components/ShareFileButton';
 import { db } from '../data/idb';
 import {
   lastSyncedAt, me, outbox, pendingCount, rejected, syncError, syncState,
@@ -64,7 +65,18 @@ export function SettingsPage() {
       )}
 
       <div class="section-title">Export</div>
-      <a class="btn block" href="/api/export.csv" download>Download CSV</a>
+      <ShareFileButton
+        label="Export CSV"
+        class="btn block"
+        make={async () => {
+          const res = await fetch('/api/export.csv', { credentials: 'same-origin', redirect: 'manual' });
+          if (res.type === 'opaqueredirect' || !res.ok || !(res.headers.get('content-type') ?? '').includes('text/csv')) {
+            throw new Error(res.type === 'opaqueredirect' ? 'Sign in again to export.' : 'Export needs a connection.');
+          }
+          const name = `inventory-${new Date().toISOString().slice(0, 10)}.csv`;
+          return new File([await res.blob()], name, { type: 'text/csv' });
+        }}
+      />
       <p class="small muted">Every item with its effective location. Needs a connection.</p>
     </Page>
   );

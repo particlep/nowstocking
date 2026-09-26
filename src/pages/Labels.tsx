@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks';
 import { useLocation } from 'preact-iso';
 import { Page } from '../components/chrome';
+import { ShareFileButton } from '../components/ShareFileButton';
 import { catalog } from '../data/store';
 import { TEMPLATES, type Template } from '../lib/labelTemplates';
 
@@ -24,7 +25,7 @@ export function LabelsPage() {
     setSelected(n);
   };
 
-  const download = async () => {
+  const makePdf = async () => {
     // jsPDF is large; load it only when a PDF is made.
     const { buildLabelsPdf } = await import('../lib/labels');
     const chosen = locations.filter((l) => selected.has(l.id));
@@ -38,7 +39,8 @@ export function LabelsPage() {
       start,
       outlines,
     );
-    doc.save(`labels-${t.id}${outlines ? '-test' : ''}.pdf`);
+    const name = `labels-${t.id}${outlines ? '-test' : ''}.pdf`;
+    return new File([doc.output('blob')], name, { type: 'application/pdf' });
   };
 
   return (
@@ -86,8 +88,8 @@ export function LabelsPage() {
 
       <label class="row small"><input type="checkbox" checked={showDesc} onChange={(e) => setShowDesc((e.target as HTMLInputElement).checked)} /> Print location description under the code</label>
       <label class="row small"><input type="checkbox" checked={outlines} onChange={(e) => setOutlines((e.target as HTMLInputElement).checked)} /> Test on plain paper (adds label outlines)</label>
-      <button class="btn primary block" disabled={!selected.size} onClick={download}>Download PDF</button>
-      <p class="small muted">Print at 100% / Actual size. Hold a test print against a label sheet up to the light before using real labels.</p>
+      <ShareFileButton label="Make PDF" make={makePdf} disabled={!selected.size} class="btn primary lg block" />
+      <p class="small muted">Opens the share sheet: choose Print, or Save to Files. Print at 100% / Actual size. Hold a test print against a label sheet up to the light before using real labels.</p>
     </Page>
   );
 }
