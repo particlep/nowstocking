@@ -1,4 +1,4 @@
-# RV-14A Parts Inventory App: Build Spec
+# NowStocking (RV-14A Parts Inventory): Build Spec
 
 ## Background
 
@@ -396,6 +396,11 @@ Deleted rows are excluded.
 - CSV export includes every item with its effective location.
 - Rivets sold by weight never show consumed or remaining counts.
 - Deep links (`/loc/B03`, `/item/123`) load correctly from a fresh tab.
+
+## Public Site and Open Source
+
+- `nowstocking.com` and `www.nowstocking.com` serve a static landing page from `site/` (a separate Worker, `nowstocking-site`, no Access). It links to the GitHub repo and the self-hosting guide in the README.
+- The code is MIT licensed ("NowStocking contributors"). Deployment identifiers in `wrangler.jsonc` (database id, Access team domain and AUD) are not secrets; forks replace them. Secrets live only in Worker secrets and GitHub Actions secrets.
 
 ## Setup Outline
 

@@ -30,3 +30,5 @@ jobs:
         run: npx wrangler d1 migrations apply rv14a-inventory --remote
       - name: Deploy Worker
         run: npx wrangler deploy
+      - name: Deploy landing page
+        run: npx wrangler deploy --config site/wrangler.jsonc

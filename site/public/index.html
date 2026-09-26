@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NowStocking · Parts inventory for kit builders</title>
+<meta name="description" content="Know where every part is. NowStocking reads your packing lists, prints QR labels for your bins, and turns a photo of a plans page into a pick list. Open source, runs on your own Cloudflare account.">
+<link rel="canonical" href="https://nowstocking.com/">
+<meta property="og:title" content="NowStocking · Parts inventory for kit builders">
+<meta property="og:description" content="Find it, scan it, pull it. An open-source parts inventory app for your phone.">
+<meta property="og:url" content="https://nowstocking.com/">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#f5f3ee">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>
+@font-face { font-family: 'Barlow Condensed'; font-weight: 700; font-display: swap; src: url(/fonts/barlow-condensed-latin-700-normal.woff2) format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-weight: 400; font-display: swap; src: url(/fonts/ibm-plex-sans-latin-400-normal.woff2) format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-weight: 600; font-display: swap; src: url(/fonts/ibm-plex-sans-latin-600-normal.woff2) format('woff2'); }
+@font-face { font-family: 'IBM Plex Mono'; font-weight: 600; font-display: swap; src: url(/fonts/ibm-plex-mono-latin-600-normal.woff2) format('woff2'); }
+
+:root {
+  --bg: #f5f3ee; --surface: #fff; --surface-2: #edeae3; --navy: #1b2a41; --text: #1b2a41;
+  --muted: #5e6673; --border: #e3dfd6; --accent: #c2410c; --accent-press: #9a3412; --accent-soft: #f4b08a;
+  --ok: #15803d; --warn: #a16207; --bad: #b91c1c;
+  --display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --sans: 'IBM Plex Sans', -apple-system, system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 18px/1.55 var(--sans); }
+a { color: var(--accent); }
+a:hover { color: var(--accent-press); }
+:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 3px; border-radius: 6px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+.skip { position: absolute; left: -999px; }
+.skip:focus { left: 16px; top: 16px; background: #fff; padding: 8px 12px; z-index: 10; }
+
+/* Header */
+header.site { padding: 20px 0; }
+header.site .wrap { display: flex; align-items: center; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+.brand svg { width: 36px; height: 36px; flex-shrink: 0; }
+.wordmark { font-family: var(--display); font-weight: 700; font-size: 28px; line-height: 1; letter-spacing: 0.3px; }
+.wordmark span { color: var(--accent); }
+header.site nav { margin-left: auto; display: flex; gap: 20px; align-items: center; }
+header.site nav a { color: var(--text); text-decoration: none; font-weight: 600; font-size: 16px; }
+header.site nav a:hover { color: var(--accent); }
+@media (max-width: 640px) { header.site nav .hide-sm { display: none; } }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 12px 22px;
+  border-radius: 14px; font-weight: 600; font-size: 17px; text-decoration: none; border: 1.5px solid #d6d1c6; background: var(--surface); color: var(--text); }
+.btn svg { width: 20px; height: 20px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { background: var(--accent-press); border-color: var(--accent-press); color: #fff; }
+.btn:hover { color: var(--text); border-color: var(--navy); }
+
+/* Hero */
+.hero { padding: 40px 0 72px; }
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 56px; align-items: center; }
+.kicker { font-size: 13px; font-weight: 600; letter-spacing: 1.6px; text-transform: uppercase; color: var(--accent); margin: 0 0 14px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: clamp(52px, 8vw, 92px); line-height: 0.95; margin: 0 0 22px; letter-spacing: 0.2px; }
+.lede { font-size: 21px; color: #3a4556; margin: 0 0 30px; max-width: 34em; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.fine { margin-top: 18px; font-size: 15px; color: var(--muted); }
+@media (max-width: 880px) { .hero .wrap { grid-template-columns: 1fr; gap: 40px; } .hero { padding-top: 16px; } }
+
+/* Phone mock, drawn in HTML so it stays crisp */
+.phone { width: min(360px, 100%); margin: 0 auto; background: var(--bg); border: 10px solid var(--navy); border-radius: 44px;
+  padding: 28px 16px 0; box-shadow: 0 30px 60px -20px rgb(27 42 65 / 0.35); overflow: hidden; }
+.phone .ph-title { font-family: var(--display); font-weight: 700; font-size: 30px; margin: 0 4px 12px; }
+.ph-search { display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 14px; border-radius: 14px; background: #fff;
+  border: 2px solid var(--navy); font: 600 18px var(--mono); margin-bottom: 14px; }
+.ph-search svg { width: 20px; height: 20px; color: var(--muted); }
+.ph-card { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 16px; background: #fff; border: 1px solid var(--border); margin-bottom: 10px; }
+.ph-card .grow { flex: 1; min-width: 0; }
+.ph-code { font: 600 17px var(--mono); }
+.ph-meta { font-size: 13px; color: var(--muted); }
+.tag { display: inline-block; background: var(--navy); color: #fff; font-family: var(--display); font-weight: 700; font-size: 26px; line-height: 1; padding: 6px 10px; border-radius: 8px; white-space: nowrap; }
+.ph-tabs { display: grid; grid-template-columns: repeat(5, 1fr); align-items: end; margin: 18px -16px 0; padding: 8px 8px 14px; background: #fff; border-top: 1px solid var(--border); font-size: 10px; color: var(--muted); text-align: center; }
+.ph-tabs .scan { width: 50px; height: 50px; margin: -26px auto 2px; border-radius: 50%; background: var(--accent); border: 4px solid #fff; display: flex; align-items: center; justify-content: center; color: #fff; }
+.ph-tabs .scan svg { width: 22px; height: 22px; }
+.ph-tabs .on { color: var(--accent); font-weight: 600; }
+
+/* Sections */
+section { padding: 72px 0; }
+section.alt { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+h2 { font-family: var(--display); font-weight: 700; font-size: clamp(38px, 5vw, 56px); line-height: 1; margin: 0 0 16px; }
+.section-lede { font-size: 19px; color: #3a4556; max-width: 40em; margin: 0 0 40px; }
+
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; counter-reset: step; }
+.steps li { background: var(--bg); border: 1px solid var(--border); border-radius: 20px; padding: 22px; counter-increment: step; }
+.steps li::before { content: counter(step, decimal-leading-zero); display: block; font-family: var(--display); font-weight: 700; font-size: 40px; line-height: 1; color: var(--accent); margin-bottom: 12px; }
+.steps h3, .features h3 { margin: 0 0 8px; font-size: 19px; }
+.steps p, .features p { margin: 0; color: #3a4556; font-size: 16px; }
+@media (max-width: 960px) { .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .steps { grid-template-columns: 1fr; } }
+
+.features { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px 36px; }
+.features > div { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 14px; align-items: start; }
+.ico { width: 44px; height: 44px; border-radius: 12px; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; }
+.ico svg { width: 22px; height: 22px; }
+@media (max-width: 900px) { .features { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .features { grid-template-columns: 1fr; } }
+
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: start; }
+@media (max-width: 880px) { .split { grid-template-columns: 1fr; } }
+.stack-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.stack-list li { display: flex; gap: 12px; align-items: baseline; padding: 14px 16px; border-radius: 14px; background: var(--bg); border: 1px solid var(--border); }
+.stack-list strong { min-width: 118px; }
+.stack-list span { color: #3a4556; font-size: 16px; }
+.callout { background: var(--navy); color: #fff; border-radius: 24px; padding: 32px; }
+.callout h3 { font-family: var(--display); font-size: 34px; line-height: 1; margin: 0 0 12px; }
+.callout p { color: #d4dae3; margin: 0 0 20px; }
+.callout .btn { background: #fff; border-color: #fff; }
+.callout code { font: 600 15px var(--mono); background: rgb(255 255 255 / 0.1); padding: 2px 6px; border-radius: 6px; color: #fff; }
+
+footer { padding: 40px 0 56px; color: var(--muted); font-size: 15px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
+footer .grow { flex: 1; min-width: 240px; }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="/" aria-label="NowStocking home">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="#1B2A41"/><g fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-8a2 2 0 0 1 2-2h8M42 12h8a2 2 0 0 1 2 2v8M52 42v8a2 2 0 0 1-2 2h-8M22 52h-8a2 2 0 0 1-2-2v-8" stroke="#C2410C" stroke-width="4.5"/><path d="M21 26l11-5 11 5-11 5zM21 26v12l11 5 11-5V26M32 31v12" stroke="#FFFFFF" stroke-width="3"/></g></svg>
+      <span class="wordmark">Now<span>Stocking</span></span>
+    </a>
+    <nav aria-label="Main">
+      <a class="hide-sm" href="#how">How it works</a>
+      <a class="hide-sm" href="#features">Features</a>
+      <a href="https://github.com/particlep/rv14a-parts-inventory">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero" aria-labelledby="hero-title" style="padding-top: 24px;">
+    <div class="wrap">
+      <div>
+        <p class="kicker">Parts inventory · find it, scan it, pull it</p>
+        <h1 id="hero-title">Know where every part is.</h1>
+        <p class="lede">
+          A kit shows up as a crate of bags and a multi-page packing list. NowStocking reads that list, labels your bins,
+          and tells you exactly where a part is the moment the plans call for it. It's an app on your phone that works in the
+          shop with no signal.
+        </p>
+        <div class="actions">
+          <a class="btn primary" href="https://github.com/particlep/rv14a-parts-inventory#self-hosting">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+            Run your own
+          </a>
+          <a class="btn" href="https://github.com/particlep/rv14a-parts-inventory">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.7.3 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></svg>
+            View the code
+          </a>
+        </div>
+        <p class="fine">Free and open source (MIT). Built for a Van's RV-14A build, and it works for any kit that ships with a packing list.</p>
+      </div>
+
+      <div class="phone" role="img" aria-label="The app's search screen: typing 470ad45 finds rivet AN470AD4-5 in bin B03, and the same part from another kit on shelf S1-B.">
+        <div class="ph-title">Find a part</div>
+        <div class="ph-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          470ad45
+        </div>
+        <div class="ph-card">
+          <div class="grow"><div class="ph-code">AN470AD4-5</div><div class="ph-meta">Rivet (LB) · EMP · BAG 1118</div></div>
+          <span class="tag">B03</span>
+        </div>
+        <div class="ph-card">
+          <div class="grow"><div class="ph-code">AN470AD4-5</div><div class="ph-meta">Rivet (LB) · FUSE · BAG 3120</div></div>
+          <span class="tag">S1-B</span>
+        </div>
+        <div class="ph-card">
+          <div class="grow"><div class="ph-code">LP4-3</div><div class="ph-meta">Pop rivet · EMP · 185 of 225 left</div></div>
+          <span class="tag">B07</span>
+        </div>
+        <div class="ph-tabs" aria-hidden="true">
+          <div class="on">Search</div><div>Put away</div>
+          <div><div class="scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10"/></svg></div>Scan</div>
+          <div>Pick</div><div>More</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" class="alt" aria-labelledby="how-title">
+    <div class="wrap">
+      <h2 id="how-title">How it works</h2>
+      <p class="section-lede">From crate to shelf to the part in your hand.</p>
+      <ol class="steps">
+        <li>
+          <h3>Photograph the packing list</h3>
+          <p>Snap every page. The pages are read in the background, bag by bag and line by line. Lines that were hard to read are flagged so you can check them against the photo.</p>
+        </li>
+        <li>
+          <h3>Label your bins</h3>
+          <p>Print QR labels on standard Avery sheets, starting from any label on a half-used sheet. Scanning a label opens that bin.</p>
+        </li>
+        <li>
+          <h3>Put it away</h3>
+          <p>Scan a bin once, then tap bags and parts as they go in. A bag's location covers every part inside it.</p>
+        </li>
+        <li>
+          <h3>Pull by plans page</h3>
+          <p>Photograph an instruction page and get a pick list of every part it calls for, sorted by where it's stored.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="features" aria-labelledby="features-title">
+    <div class="wrap">
+      <h2 id="features-title">Made for the shop floor</h2>
+      <p class="section-lede">Big type, one-handed, and it doesn't care whether you have Wi-Fi.</p>
+      <div class="features">
+        <div>
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>
+          <div><h3>Forgiving search</h3><p>Type "470ad45" and find AN470AD4-5. Dashes, spaces and case don't matter. A part that shipped in two kits shows both locations.</p></div>
+        </div>
+        <div>
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12h3M19 12h3M12 2v3M12 19v3"/><circle cx="12" cy="12" r="6"/><path d="M4 4l16 16"/></svg></span>
+          <div><h3>Works offline</h3><p>Everything is on your phone. Edits made with no signal upload when you're back online, and none are lost.</p></div>
+        </div>
+        <div>
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10"/></svg></span>
+          <div><h3>Scan to see what's inside</h3><p>Every bin and shelf label is a QR code. Scan it in the app, or with the phone's camera.</p></div>
+        </div>
+        <div>
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg></span>
+          <div><h3>Receiving checklist</h3><p>Check a kit against its packing list. Missing, damaged and backordered items collect at the top.</p></div>
+        </div>
+        <div>
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h6"/></svg></span>
+          <div><h3>Consumed and left</h3><p>Log what goes into the build and see what's left. Parts sold by weight, like rivets, are left alone.</p></div>
+        </div>
+        <div>
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          <div><h3>Moves and splits</h3><p>Move a bag and everything in it follows. Split 225 pop rivets across two bins and each keeps its count.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="self-host" class="alt" aria-labelledby="host-title">
+    <div class="wrap split">
+      <div>
+        <h2 id="host-title">Runs on your Cloudflare account</h2>
+        <p class="section-lede" style="margin-bottom: 24px;">
+          Your inventory lives in your own account, behind your own login. There's no NowStocking server holding your data.
+        </p>
+        <ul class="stack-list">
+          <li><strong>Workers</strong><span>The app and its API, on your own domain</span></li>
+          <li><strong>D1</strong><span>The inventory database</span></li>
+          <li><strong>R2 + Workflows</strong><span>Photos, and reading them in the background</span></li>
+          <li><strong>Access</strong><span>Email sign-in. Add a build partner without touching code</span></li>
+          <li><strong>Email Sending</strong><span>Label PDFs sent straight to your inbox</span></li>
+        </ul>
+      </div>
+      <div class="callout">
+        <h3>Set it up in an afternoon</h3>
+        <p>
+          Fork the repo, create the database and bucket, put Access in front of your domain, and deploy. Photo reading uses
+          the Claude API with your own key, so Anthropic bills you per page read (well under a dollar a page).
+        </p>
+        <p>The README walks through every step, starting with <code>npm install</code>.</p>
+        <a class="btn" href="https://github.com/particlep/rv14a-parts-inventory#self-hosting">Read the setup guide</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span class="grow">
+      NowStocking is open source under the MIT license. It isn't affiliated with or endorsed by Van's Aircraft or any other kit maker.
+      Part numbers shown are examples.
+    </span>
+    <a href="https://github.com/particlep/rv14a-parts-inventory">GitHub</a>
+  </div>
+</footer>
+</body>
+</html>

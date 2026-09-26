@@ -1,0 +1,9 @@
+# Copy to .dev.vars for local development (`npm run dev`). Never commit .dev.vars.
+
+# Local dev skips Cloudflare Access: blank these so API requests run as DEV_USER_EMAIL.
+ACCESS_TEAM_DOMAIN=
+ACCESS_AUD=
+DEV_USER_EMAIL=dev@localhost
+
+# Needed only to test photo import locally.
+# ANTHROPIC_API_KEY=
