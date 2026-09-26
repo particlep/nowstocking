@@ -104,8 +104,12 @@ All of these are `vars` in `wrangler.jsonc`:
 | `SIGNUP_MODE` | `"single"`: everyone who can sign in joins one account, and the first person is its owner | `"open"`: each new user gets their own account |
 | `PHOTO_PAGES_PER_MONTH` | `"0"`: no limit | Photo pages Claude may read per account each month |
 | `EMAIL_FROM` | Sender for label PDFs, invites and sign-in codes | Same |
+| `TURNSTILE_SITEKEY` | `""`: off | A [Turnstile](https://developers.cloudflare.com/turnstile/) sitekey. The bot check runs on "Email me a code" |
+| `TURNSTILE_HOSTNAMES` | `""` | The site's hostnames, comma-separated. A token from any other hostname is refused |
 
-Email sign-in requests are also limited to 10 a minute per IP address (the `AUTH_LIMITER` rate-limit binding). Email
+With Turnstile on, also set the widget's secret: `npx wrangler secret put TURNSTILE_SECRET`. The Worker checks every
+token with Cloudflare, requires the `signin` action and a listed hostname, and refuses the request if Cloudflare can't be
+reached. Email sign-in requests are also limited to 10 a minute per IP address (the `AUTH_LIMITER` rate-limit binding). Email
 sign-in also needs a secret: `openssl rand -base64 48 | npx wrangler secret put AUTH_SECRET`. Codes and session
 tokens are stored only as hashes. Codes expire after 10 minutes and lock after 5 wrong tries, and each address can
 request 5 codes an hour. With email sign-in, don't put Access in front of the app.

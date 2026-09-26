@@ -1,6 +1,7 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { useLocation } from 'preact-iso';
 import { LogoMark } from '../components/icons';
+import { Turnstile } from '../components/Turnstile';
 import { api } from '../data/api';
 import { sync } from '../data/sync';
 import { refreshIdentity } from '../data/workspace';
@@ -13,6 +14,14 @@ export function SignInPage() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Bot check on "Email me a code", when this install has Turnstile turned on.
+  const [sitekey, setSitekey] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [resetKey, setResetKey] = useState(0);
+
+  useEffect(() => {
+    api<{ turnstileSitekey?: string | null }>('/api/auth/config').then((r) => setSitekey(r.turnstileSitekey ?? null)).catch(() => {});
+  }, []);
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -27,8 +36,16 @@ export function SignInPage() {
   };
 
   const send = () => run(async () => {
-    await api('/api/auth/start', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: email.trim() }) });
-    setStep('code');
+    try {
+      await api('/api/auth/start', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), turnstile: token ?? undefined }),
+      });
+      setStep('code');
+    } finally {
+      // The token was used up either way.
+      if (sitekey) setResetKey((k) => k + 1);
+    }
   });
 
   const verify = () => run(async () => {
@@ -60,7 +77,10 @@ export function SignInPage() {
               placeholder="you@example.com" value={email} onInput={(e) => setEmail((e.target as HTMLInputElement).value)}
             />
           </label>
-          <button class="btn primary lg" type="submit" disabled={busy || !email.includes('@')}>{busy ? 'Sending…' : 'Email me a code'}</button>
+          {sitekey && <Turnstile sitekey={sitekey} action="signin" onToken={setToken} resetKey={resetKey} onError={setError} />}
+          <button class="btn primary lg" type="submit" disabled={busy || !email.includes('@') || (!!sitekey && !token)}>
+            {busy ? 'Sending…' : 'Email me a code'}
+          </button>
           <p class="meta" style={{ margin: 0 }}>No password. New here? Signing in creates your workshop.</p>
         </form>
       ) : (
@@ -78,7 +98,7 @@ export function SignInPage() {
           <button class="btn primary lg" type="submit" disabled={busy || code.length !== 6}>{busy ? 'Checking…' : 'Sign in'}</button>
           <div class="row">
             <button class="btn small" type="button" onClick={() => { setStep('email'); setCode(''); }}>Use a different email</button>
-            <button class="btn small" type="button" disabled={busy} onClick={send}>Send a new code</button>
+            <button class="btn small" type="button" disabled={busy} onClick={() => { setStep('email'); setCode(''); }}>Send a new code</button>
           </div>
         </form>
       )}

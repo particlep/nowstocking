@@ -29,6 +29,10 @@
     "AUTH_MODE": "access",
     // Photo pages Claude may read per account per month. 0 = unlimited.
     "PHOTO_PAGES_PER_MONTH": "0",
+    // Cloudflare Turnstile on the email sign-in form. Empty = off. When set, also set TURNSTILE_HOSTNAMES
+    // (comma-separated frontend hostnames) and the TURNSTILE_SECRET secret.
+    "TURNSTILE_SITEKEY": "",
+    "TURNSTILE_HOSTNAMES": "",
     // "single": self-hosted, everyone who gets past Access joins one account (first person is owner).
     // "open": hosted, each new user gets their own account.
     "SIGNUP_MODE": "single"
@@ -80,6 +84,8 @@
         "EMAIL_FROM": "no-reply@nowstocking.com",
         "AUTH_MODE": "email",
         "PHOTO_PAGES_PER_MONTH": "20",
+        "TURNSTILE_SITEKEY": "0x4AAAAAAFEatL_S3WafL5H8",
+        "TURNSTILE_HOSTNAMES": "app.nowstocking.com",
         "SIGNUP_MODE": "open"
       },
       "durable_objects": {

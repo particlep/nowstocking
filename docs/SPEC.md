@@ -84,8 +84,12 @@ One PWA on my iPhone that does lookup, scanning, put-away, receiving, and pick l
   More → Warehouses switches, adds (owner/admin), renames (owner/admin) and archives (owner) warehouses.
 - **Sign-in:** `AUTH_MODE=access` (Cloudflare Access, the self-hosted default) or `email`. Email sign-in sends a
   6-digit code through Email Sending and sets a 90-day `HttpOnly` session cookie. Codes are stored as HMAC hashes, expire
-  in 10 minutes, and allow 5 tries; each address can request 5 codes an hour. In email mode, writes from another origin
-  are refused.
+  in 10 minutes, and allow 5 tries; each address can request 5 codes an hour, and each IP 10 sign-in requests a
+  minute. In email mode, writes from another origin are refused.
+- **Bot check:** with `TURNSTILE_SITEKEY` set, "Email me a code" shows a Cloudflare Turnstile widget (action `signin`).
+  The Worker verifies the token with siteverify before sending any email. It requires `success`, the `signin` action
+  and a hostname in `TURNSTILE_HOSTNAMES`, and it fails closed. Tokens are single-use, so the widget resets after every
+  attempt. On for app.nowstocking.com.
 - **Members:** invites are keyed by email and last 30 days. Signing in with an invited email joins the account with the
   invited role. Owners change roles, admins remove members, anyone can leave, and the last owner can't be removed.
   Screen: More → Members.

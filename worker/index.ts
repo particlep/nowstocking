@@ -11,6 +11,7 @@ import { emailLabels, EmailError } from './email';
 import { getImportImage, IMAGE_TYPES, JOB_ID, MAX_IMAGE_BYTES, type ImageType } from './import';
 import { cancelInvite, invite, listMembers, MemberError, removeMember, renameAccount, setRole } from './members';
 import { AuthError, EMAIL_RE, endSession, SESSION_COOKIE, SESSION_MAX_AGE, startLogin, verifyLogin } from './session';
+import { turnstileSitekey, verifyTurnstile } from './turnstile';
 import { getUsage, recordPhotoPages } from './usage';
 
 const app = new Hono<AppEnv>().basePath('/api');
@@ -30,7 +31,7 @@ function fromRpcError(c: Context<AppEnv>, e: unknown) {
 
 // ---- Sign-in (AUTH_MODE = "email") ----
 
-app.get('/auth/config', (c) => c.json({ mode: authMode(c.env) }));
+app.get('/auth/config', (c) => c.json({ mode: authMode(c.env), turnstileSitekey: turnstileSitekey(c.env) }));
 
 /** 10 sign-in requests a minute per IP, so the form can't be used to flood inboxes or guess codes. */
 app.use('/auth/:step{start|verify}', async (c, next) => {
@@ -44,7 +45,11 @@ app.use('/auth/:step{start|verify}', async (c, next) => {
 
 app.post('/auth/start', async (c) => {
   if (authMode(c.env) !== 'email') return c.json({ error: 'This install signs in through Cloudflare Access.' }, 400);
-  const body = await c.req.json<{ email?: string }>().catch(() => ({}) as { email?: string });
+  const body = await c.req.json<{ email?: string; turnstile?: string }>().catch(() => ({}) as { email?: string; turnstile?: string });
+  // Bot check before any email is sent.
+  if (turnstileSitekey(c.env) && !(await verifyTurnstile(c.env, body.turnstile, 'signin', c.req.header('CF-Connecting-IP')))) {
+    return c.json({ error: "We couldn't confirm you're not a bot. Try the check again.", turnstile: true }, 403);
+  }
   try {
     return c.json({ ok: true, ...(await startLogin(c.env, body.email ?? '')) });
   } catch (e) {
