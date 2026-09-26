@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { useLocation } from 'preact-iso';
 import type { ImportJobSummary } from '../../shared/importTypes';
 import { Page } from '../components/chrome';
+import { onRefresh } from '../components/PullToRefresh';
 import { api } from '../data/sync';
 import { toJpeg } from '../lib/images';
 
@@ -16,9 +17,12 @@ export function ImportListPage() {
   const [uploaded, setUploaded] = useState(0);
 
   useEffect(() => {
-    api<{ jobs: ImportJobSummary[] }>('/api/import/jobs')
-      .then((r) => setJobs(r.jobs))
-      .catch(() => setLoadErr('Imports need a connection.'));
+    const load = () =>
+      api<{ jobs: ImportJobSummary[] }>('/api/import/jobs')
+        .then((r) => { setJobs(r.jobs); setLoadErr(null); })
+        .catch(() => setLoadErr('Imports need a connection.'));
+    void load();
+    return onRefresh(load);
   }, []);
 
   const upload = async () => {

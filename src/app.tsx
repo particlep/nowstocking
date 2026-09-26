@@ -1,5 +1,6 @@
 import { LocationProvider, Route, Router } from 'preact-iso';
 import { TabBar } from './components/chrome';
+import { PullToRefresh } from './components/PullToRefresh';
 import { syncState } from './data/store';
 import { signIn } from './data/sync';
 import { AddItemPage } from './pages/AddItem';
@@ -32,6 +33,7 @@ export function App() {
   return (
     <LocationProvider>
       <div class="app">
+        <PullToRefresh />
         <SignInBanner />
         <Router>
           <Route path="/" component={SearchPage} />

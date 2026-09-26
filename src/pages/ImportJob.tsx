@@ -4,6 +4,7 @@ import type { ImportJob } from '../../shared/importTypes';
 import { fmtQty } from '../../shared/inventory';
 import type { ItemType, Op } from '../../shared/schema';
 import { Page } from '../components/chrome';
+import { onRefresh } from '../components/PullToRefresh';
 import { itemFields } from '../data/actions';
 import { clearDraft, draft, loadDraft, mergeJob, needsReview, type DraftRow } from '../data/importDraft';
 import { commit, insertOp } from '../data/mutate';
@@ -44,6 +45,7 @@ export function ImportJobPage() {
     document.addEventListener('visibilitychange', onVisible);
     return () => { stop = true; clearTimeout(timer); document.removeEventListener('visibilitychange', onVisible); };
   }, [id, pollKey]);
+  useEffect(() => onRefresh(() => setPollKey((k) => k + 1)), []);
 
   const d = draft.value?.jobId === id ? draft.value : null;
   if (!job) return <Page title="Import" back>{error ? <p class="banner bad">{error}</p> : <p class="muted center">Loading…</p>}</Page>;
