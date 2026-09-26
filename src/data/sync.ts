@@ -55,7 +55,11 @@ async function push() {
 async function pull() {
   const d = await db();
   const since = await getMeta<number>('lastVersion', 0);
-  const res = await api<SyncResponse>(`/api/sync?since=${since}`);
+  let res = await api<SyncResponse>(`/api/sync?since=${since}`);
+  if (!res.full && res.version < since) {
+    // The server's version went backwards: it's a new or reset database. Replace everything.
+    res = await api<SyncResponse>('/api/sync?since=0');
+  }
   const base = getServerRows();
   const next = { ...base } as Tables;
   const tx = d.transaction([...TABLE_NAMES, 'meta'] as (TableName | 'meta')[], 'readwrite');

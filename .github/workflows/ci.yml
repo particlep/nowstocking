@@ -49,7 +49,7 @@ jobs:
       - name: Build
         run: npm run build
       - name: Apply D1 migrations
-        run: npx wrangler d1 migrations apply rv14a-inventory --remote
+        run: npx wrangler d1 migrations apply inventory --remote
       - name: Deploy Worker
         run: npx wrangler deploy
       - name: Deploy landing page

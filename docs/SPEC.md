@@ -405,8 +405,8 @@ Deleted rows are excluded.
 ## Setup Outline
 
 1. Scaffold a Worker with static assets (Vite + Preact frontend, Hono API) in one repo.
-2. `wrangler d1 create rv14a-inventory`, then apply the schema migration.
-3. `wrangler r2 bucket create rv14a-imports`.
+2. `wrangler d1 create inventory`, then apply the schema migration.
+3. `wrangler r2 bucket create imports`.
 4. Add D1 and R2 bindings to `wrangler.jsonc`. Set `workers_dev: false`. Add the `ANTHROPIC_API_KEY` secret.
 5. Deploy with a custom domain route for `pc-rv14a.nowstocking.com`. Put Cloudflare Access in front of it, with my email as the only allowed user. Set session duration to 1 month. Put the Access team domain and AUD in Worker vars.
 6. Install the PWA from Safari with Share > Add to Home Screen.

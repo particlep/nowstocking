@@ -30,7 +30,9 @@ export type Store = 'kits' | 'locations' | 'items' | 'placements' | 'pick_lists'
 let dbp: Promise<IDBPDatabase<InventoryDB>> | undefined;
 
 export function db() {
-  dbp ??= openDB<InventoryDB>('rv14a-inventory', 1, {
+  // The pre-rename local database is dropped; the new one fills from a full sync.
+  if (!dbp) indexedDB.deleteDatabase('rv14a-inventory');
+  dbp ??= openDB<InventoryDB>('nowstocking', 1, {
     upgrade(d) {
       for (const t of ['kits', 'locations', 'items', 'placements', 'pick_lists', 'pick_list_lines', 'consumptions'] as const) {
         d.createObjectStore(t, { keyPath: 'id' });

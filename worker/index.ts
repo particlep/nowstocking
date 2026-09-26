@@ -115,7 +115,7 @@ app.get('/export.csv', async (c) => {
   const date = new Date().toISOString().slice(0, 10);
   return c.body(csv, 200, {
     'content-type': 'text/csv; charset=utf-8',
-    'content-disposition': `attachment; filename="rv14a-inventory-${date}.csv"`,
+    'content-disposition': `attachment; filename="inventory-${date}.csv"`,
   });
 });
 

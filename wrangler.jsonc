@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "rv14a-inventory",
+  "name": "nowstocking",
   "main": "worker/index.ts",
   "compatibility_date": "2026-09-15",
   "compatibility_flags": ["nodejs_compat"],
@@ -31,16 +31,16 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "rv14a-inventory",
-      "database_id": "9707f32f-6e44-4bc2-8af9-dc9e8e09f4f7",
+      "database_name": "inventory",
+      "database_id": "4177d6ce-821b-48ec-a6ac-0076fedf7b13",
       "migrations_dir": "migrations"
     }
   ],
   "workflows": [
-    { "name": "rv14a-import", "binding": "IMPORT_WORKFLOW", "class_name": "ImportWorkflow" }
+    { "name": "nowstocking-import", "binding": "IMPORT_WORKFLOW", "class_name": "ImportWorkflow" }
   ],
   "r2_buckets": [
-    { "binding": "IMPORTS", "bucket_name": "rv14a-imports" }
+    { "binding": "IMPORTS", "bucket_name": "imports" }
   ],
 
   "observability": { "enabled": true }

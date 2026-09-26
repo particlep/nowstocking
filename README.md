@@ -95,7 +95,7 @@ Workflows are heavier than the free plan's limits comfortably allow. Photo impor
 ### 1. Clone and install
 
 ```sh
-git clone https://github.com/particlep/nowstocking.git nowstocking
+git clone https://github.com/particlep/nowstocking.git
 cd nowstocking
 npm install
 npx wrangler login
@@ -104,8 +104,8 @@ npx wrangler login
 ### 2. Create the database and bucket
 
 ```sh
-npx wrangler d1 create rv14a-inventory
-npx wrangler r2 bucket create rv14a-imports
+npx wrangler d1 create inventory
+npx wrangler r2 bucket create imports
 ```
 
 Put the new `database_id` into `wrangler.jsonc`, then apply the schema:
