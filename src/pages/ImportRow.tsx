@@ -8,7 +8,8 @@ import { CheckIcon, FlagIcon, PhotoIcon, PlusIcon } from '../components/icons';
 import {
   draft, insertRowAfter, loadDraft, needsReview, removeRow, unitFor, updateRow, type DraftRow,
 } from '../data/importDraft';
-import { api } from '../data/sync';
+import { api } from '../data/api';
+import { wpath } from '../data/workspace';
 
 const KINDS: { value: DraftRow['kind']; label: string }[] = [
   { value: 'subkit', label: 'Sub-kit' },
@@ -25,7 +26,7 @@ export function ImportRowPage() {
 
   useEffect(() => {
     void loadDraft(jobId);
-    api<ImportJob>(`/api/import/jobs/${jobId}`)
+    api<ImportJob>(wpath(`/import/jobs/${jobId}`))
       .then((j) => setImageKeys(Object.fromEntries(j.pages.filter((p) => p.image_key).map((p) => [p.page, p.image_key!]))))
       .catch(() => {});
   }, [jobId]);
@@ -78,13 +79,13 @@ export function ImportRowPage() {
       {imageKeys[r.page] ? (
         <button
           type="button"
-          onClick={() => openPhoto(`/api/import/image/${imageKeys[r.page]}`, `Packing list page ${r.page}`)}
+          onClick={() => openPhoto(wpath(`/import/image/${imageKeys[r.page]}`), `Packing list page ${r.page}`)}
           aria-label={`Open page ${r.page} photo full size`}
           style={{ display: 'block', position: 'relative', width: '100%', padding: 0, border: 0, background: 'none' }}
         >
           <img
             class="photo"
-            src={`/api/import/image/${imageKeys[r.page]}`}
+            src={wpath(`/import/image/${imageKeys[r.page]}`)}
             alt={`Packing list page ${r.page}, around this line`}
             style={{ height: '170px', objectFit: 'cover', objectPosition: `center ${focusY}%` }}
           />

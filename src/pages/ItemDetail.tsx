@@ -13,7 +13,8 @@ import {
 } from '../data/actions';
 import { commit, deleteOp, updateOp } from '../data/mutate';
 import { catalog, loaded, tables } from '../data/store';
-import { api } from '../data/sync';
+import { api } from '../data/api';
+import { wpath } from '../data/workspace';
 
 export function ItemDetailPage() {
   const { params } = useRoute();
@@ -315,7 +316,7 @@ function History({ item }: { item: Item }) {
   const [err, setErr] = useState<string | null>(null);
   const load = () => {
     setErr(null);
-    api<{ changes: Change[] }>(`/api/history/items/${item.id}`)
+    api<{ changes: Change[] }>(wpath(`/history/items/${item.id}`))
       .then((r) => setChanges(r.changes))
       .catch(() => setErr('History needs a connection.'));
   };

@@ -23,8 +23,17 @@
     "ACCESS_AUD": "54134992e542d3184a0d89d3dc8d596af3ddd4b00a513d023081807922c6547a",
     "IMPORT_MODEL": "claude-opus-5",
     // Sender for emailed label PDFs. The domain is onboarded to Cloudflare Email Sending.
-    "EMAIL_FROM": "labels@nowstocking.com"
+    "EMAIL_FROM": "labels@nowstocking.com",
+    // "single": self-hosted, everyone who gets past Access joins one account (first person is owner).
+    // "open": hosted, each new user gets their own account.
+    "SIGNUP_MODE": "single"
   },
+
+  // Each warehouse's inventory lives in its own Durable Object with SQLite storage.
+  "durable_objects": {
+    "bindings": [{ "name": "WAREHOUSE", "class_name": "Warehouse" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Warehouse"] }],
 
   "send_email": [{ "name": "EMAIL" }],
 
@@ -32,7 +41,7 @@
     {
       "binding": "DB",
       "database_name": "inventory",
-      "database_id": "4177d6ce-821b-48ec-a6ac-0076fedf7b13",
+      "database_id": "1412bc36-4878-4f61-a97b-9a37fb66c0c6",
       "migrations_dir": "migrations"
     }
   ],

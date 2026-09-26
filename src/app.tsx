@@ -2,7 +2,8 @@ import { LocationProvider, Route, Router, useLocation } from 'preact-iso';
 import { hidesTabs, TabBar } from './components/chrome';
 import { PhotoViewer } from './components/PhotoViewer';
 import { PullToRefresh } from './components/PullToRefresh';
-import { syncState } from './data/store';
+import { syncError, syncState } from './data/store';
+import { warehouseId } from './data/workspace';
 import { signIn } from './data/sync';
 import { AddItemPage } from './pages/AddItem';
 import { ImportListPage } from './pages/Import';
@@ -19,6 +20,8 @@ import { PutAwayPage } from './pages/PutAway';
 import { ReceivingKitPage, ReceivingListPage } from './pages/Receiving';
 import { ScanPage } from './pages/Scan';
 import { SearchPage } from './pages/Search';
+import { WarehouseLocationPage } from './pages/WarehouseLocation';
+import { WarehousesPage } from './pages/Warehouses';
 import { SettingsPage } from './pages/Settings';
 
 function SignInBanner() {
@@ -33,7 +36,21 @@ function SignInBanner() {
 
 function Shell({ children }: { children: preact.ComponentChildren }) {
   const { path } = useLocation();
-  return <div class={`app${hidesTabs(path) ? ' no-tabs' : ''}`}>{children}</div>;
+  return <div class={`app${hidesTabs(path) ? ' no-tabs' : ''}`}>{warehouseId.value ? children : <FirstRun />}</div>;
+}
+
+/** Before this phone has ever loaded a warehouse. */
+function FirstRun() {
+  const state = syncState.value;
+  return (
+    <main class="page stack" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 48px)', textAlign: 'center' }}>
+      <h1 class="large-title">NowStocking</h1>
+      {state === 'offline' && <p class="muted">Connect to the internet once to load your warehouse. After that it works offline.</p>}
+      {state === 'signin' && <button class="btn primary" onClick={signIn}>Sign in</button>}
+      {state === 'error' && <p class="banner bad">{syncError.value}</p>}
+      {(state === 'idle' || state === 'syncing') && <p class="muted">Loading your warehouse…</p>}
+    </main>
+  );
 }
 
 export function App() {
@@ -46,6 +63,8 @@ export function App() {
           <Route path="/" component={SearchPage} />
           <Route path="/scan" component={ScanPage} />
           <Route path="/loc/:code" component={LocationDetailPage} />
+          <Route path="/w/:wid/loc/:code" component={WarehouseLocationPage} />
+          <Route path="/warehouses" component={WarehousesPage} />
           <Route path="/item/new" component={AddItemPage} />
           <Route path="/item/:id" component={ItemDetailPage} />
           <Route path="/putaway" component={PutAwayPage} />

@@ -2,16 +2,28 @@ import QrScanner from 'qr-scanner';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { normalizeLocationCode } from '../../shared/normalize';
 
-/** Accepts https://<host>/loc/B03 (what labels encode) or a bare code. */
-export function parseLocationCode(text: string): string | null {
+export interface ScannedLocation {
+  code: string;
+  /** Warehouse the label belongs to, when the label says. */
+  warehouseId: string | null;
+}
+
+/** Accepts https://<host>/w/<warehouse>/loc/B03 (what labels encode), https://<host>/loc/B03, or a bare code. */
+export function parseLocationLabel(text: string): ScannedLocation | null {
   const t = text.trim();
   try {
     const url = new URL(t);
-    const m = url.pathname.match(/^\/loc\/([^/]+)\/?$/);
-    return m ? normalizeLocationCode(decodeURIComponent(m[1])) : null;
+    const m = url.pathname.match(/^(?:\/w\/([a-z0-9]{10}))?\/loc\/([^/]+)\/?$/);
+    return m ? { code: normalizeLocationCode(decodeURIComponent(m[2])), warehouseId: m[1] ?? null } : null;
   } catch {
-    return /^[A-Za-z0-9-]{1,24}$/.test(t) ? normalizeLocationCode(t) : null;
+    return /^[A-Za-z0-9-]{1,24}$/.test(t) ? { code: normalizeLocationCode(t), warehouseId: null } : null;
   }
+}
+
+/** Where a scanned label should open. */
+export function locationHref(loc: ScannedLocation): string {
+  const code = encodeURIComponent(loc.code);
+  return loc.warehouseId ? `/w/${loc.warehouseId}/loc/${code}` : `/loc/${code}`;
 }
 
 /** Camera view that reports each distinct QR payload once. */

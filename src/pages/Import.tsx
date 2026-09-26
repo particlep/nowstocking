@@ -4,12 +4,23 @@ import type { ImportJobSummary } from '../../shared/importTypes';
 import { Page } from '../components/chrome';
 import { onRefresh } from '../components/PullToRefresh';
 import { PhotoUpload } from '../components/PhotoUpload';
-import { api } from '../data/sync';
+import { api } from '../data/api';
+import { wpath } from '../data/workspace';
 
 export function ImportListPage() {
   const { route } = useLocation();
   const [jobs, setJobs] = useState<ImportJobSummary[] | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = () =>
+      api<{ jobs: ImportJobSummary[] }>(wpath('/import/jobs?kind=packing_list'))
+        .then((r) => { setJobs(r.jobs); setLoadErr(null); })
+        .catch(() => setLoadErr('Imports need a connection.'));
+    void load();
+    return onRefresh(load);
+  }, []);
+
   const open = (jobs ?? []).filter((j) => j.status !== 'committed');
   const past = (jobs ?? []).filter((j) => j.status === 'committed');
 

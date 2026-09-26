@@ -6,6 +6,7 @@ import {
   lastSyncedAt, me, outbox, pendingCount, rejected, syncError, syncState,
 } from '../data/store';
 import { fullResync, signIn, sync } from '../data/sync';
+import { wpath } from '../data/workspace';
 
 export function SettingsPage() {
   const state = syncState.value;
@@ -69,7 +70,7 @@ export function SettingsPage() {
         label="Export CSV"
         class="btn block"
         make={async () => {
-          const res = await fetch('/api/export.csv', { credentials: 'same-origin', redirect: 'manual' });
+          const res = await fetch(wpath('/export.csv'), { credentials: 'same-origin', redirect: 'manual' });
           if (res.type === 'opaqueredirect' || !res.ok || !(res.headers.get('content-type') ?? '').includes('text/csv')) {
             throw new Error(res.type === 'opaqueredirect' ? 'Sign in again to export.' : 'Export needs a connection.');
           }

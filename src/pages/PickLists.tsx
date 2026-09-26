@@ -9,7 +9,8 @@ import type { ImportJobSummary } from '../../shared/importTypes';
 import { CameraIcon, CheckIcon, ChevronIcon, PlusIcon } from '../components/icons';
 import { PhotoUpload } from '../components/PhotoUpload';
 import { onRefresh } from '../components/PullToRefresh';
-import { api } from '../data/sync';
+import { api } from '../data/api';
+import { wpath } from '../data/workspace';
 import { consume } from '../data/actions';
 import { commit, deleteOp, insertOp, updateOp } from '../data/mutate';
 import { catalog, loaded, tables } from '../data/store';
@@ -30,7 +31,7 @@ export function PickListsPage() {
 
   useEffect(() => {
     const load = () =>
-      api<{ jobs: ImportJobSummary[] }>('/api/import/jobs?kind=instructions')
+      api<{ jobs: ImportJobSummary[] }>(wpath('/import/jobs?kind=instructions'))
         .then((r) => setJobs(r.jobs.filter((j) => j.status !== 'committed')))
         .catch(() => {});
     void load();

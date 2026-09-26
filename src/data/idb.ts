@@ -12,7 +12,8 @@ export interface RejectedEntry {
   rejected_at: string;
 }
 
-interface InventoryDB extends DBSchema {
+/** One local database per warehouse: its rows, outbox and settings. */
+interface WarehouseDB extends DBSchema {
   kits: { key: number; value: Rows['kits'] };
   locations: { key: number; value: Rows['locations'] };
   items: { key: number; value: Rows['items'] };
@@ -25,14 +26,47 @@ interface InventoryDB extends DBSchema {
   meta: { key: string; value: unknown };
 }
 
+/** App-wide settings: who's signed in, which warehouse is open. */
+interface AppDB extends DBSchema {
+  meta: { key: string; value: unknown };
+}
+
 export type Store = 'kits' | 'locations' | 'items' | 'placements' | 'pick_lists' | 'pick_list_lines' | 'consumptions';
 
-let dbp: Promise<IDBPDatabase<InventoryDB>> | undefined;
+// Local databases from before warehouses existed.
+for (const old of ['rv14a-inventory', 'nowstocking']) {
+  try { indexedDB.deleteDatabase(old); } catch { /* not available */ }
+}
+
+let appDbp: Promise<IDBPDatabase<AppDB>> | undefined;
+function appDb() {
+  appDbp ??= openDB<AppDB>('nowstocking-app', 1, { upgrade: (d) => void d.createObjectStore('meta') });
+  return appDbp;
+}
+
+export async function getGlobal<T>(key: string, fallback: T): Promise<T> {
+  return ((await (await appDb()).get('meta', key)) as T | undefined) ?? fallback;
+}
+
+export async function setGlobal(key: string, value: unknown) {
+  await (await appDb()).put('meta', value, key);
+}
+
+let warehouseId: string | null = null;
+let dbp: Promise<IDBPDatabase<WarehouseDB>> | undefined;
+
+/** Point local storage at a warehouse. Closes the previous warehouse's database. */
+export async function useWarehouseDb(id: string | null) {
+  if (id === warehouseId) return;
+  const prev = dbp;
+  dbp = undefined;
+  warehouseId = id;
+  if (prev) (await prev).close();
+}
 
 export function db() {
-  // The pre-rename local database is dropped; the new one fills from a full sync.
-  if (!dbp) indexedDB.deleteDatabase('rv14a-inventory');
-  dbp ??= openDB<InventoryDB>('nowstocking', 1, {
+  if (!warehouseId) throw new Error('No warehouse selected');
+  dbp ??= openDB<WarehouseDB>(`nowstocking-w-${warehouseId}`, 1, {
     upgrade(d) {
       for (const t of ['kits', 'locations', 'items', 'placements', 'pick_lists', 'pick_list_lines', 'consumptions'] as const) {
         d.createObjectStore(t, { keyPath: 'id' });

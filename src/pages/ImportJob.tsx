@@ -11,7 +11,8 @@ import { itemFields } from '../data/actions';
 import { clearDraft, draft, loadDraft, mergeJob, needsReview, type DraftRow } from '../data/importDraft';
 import { commit, insertOp } from '../data/mutate';
 import { catalog } from '../data/store';
-import { api } from '../data/sync';
+import { api } from '../data/api';
+import { wpath } from '../data/workspace';
 
 const POLL_MS = 4000;
 
@@ -30,7 +31,7 @@ export function ImportJobPage() {
     void loadDraft(id);
     const poll = async () => {
       try {
-        const j = await api<ImportJob>(`/api/import/jobs/${id}`);
+        const j = await api<ImportJob>(wpath(`/import/jobs/${id}`));
         if (stop) return;
         setJob(j);
         setError(null);
@@ -60,7 +61,7 @@ export function ImportJobPage() {
   const shown = filter === 'review' ? flagged : rows;
 
   const retry = async (pages: number[]) => {
-    setJob(await api<ImportJob>(`/api/import/jobs/${id}/start`, {
+    setJob(await api<ImportJob>(wpath(`/import/jobs/${id}/start`), {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pages }),
     }));
     setPollKey((k) => k + 1); // resume polling
@@ -99,7 +100,7 @@ export function ImportJobPage() {
         {job.pages.some((p) => p.image_key) && (
           <div class="chips">
             {job.pages.filter((p) => p.image_key).map((p) => (
-              <button class="chip" style={{ minHeight: '36px' }} onClick={() => openPhoto(`/api/import/image/${p.image_key}`, `Packing list page ${p.page}`)}>
+              <button class="chip" style={{ minHeight: '36px' }} onClick={() => openPhoto(wpath(`/import/image/${p.image_key}`), `Packing list page ${p.page}`)}>
                 <PhotoIcon />Page {p.page}
               </button>
             ))}
@@ -135,7 +136,7 @@ export function ImportJobPage() {
         class="btn danger block"
         onClick={async () => {
           if (!confirm('Delete this import and its photos? Items already committed stay in inventory.')) return;
-          await api(`/api/import/jobs/${id}`, { method: 'DELETE' });
+          await api(wpath(`/import/jobs/${id}`), { method: 'DELETE' });
           await clearDraft(id);
           route('/import', true);
         }}
@@ -219,7 +220,7 @@ function CommitPanel({ job, rows, flagged, failedPages }: { job: ImportJob; rows
       if (r.kind === 'part' && !r.indented) bag = null;
     }
     await commit(`Import ${rows.length} lines into ${targetCode}`, ops);
-    await api(`/api/import/jobs/${job.id}/committed`, { method: 'POST' }).catch(() => {});
+    await api(wpath(`/import/jobs/${job.id}/committed`), { method: 'POST' }).catch(() => {});
     await clearDraft(job.id);
     route(`/receive/${encodeURIComponent(targetCode)}`, true);
   };

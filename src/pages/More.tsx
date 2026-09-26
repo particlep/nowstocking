@@ -1,6 +1,7 @@
 import { Page } from '../components/chrome';
 import { ChevronIcon, LogoMark } from '../components/icons';
 import { me } from '../data/store';
+import { CurrentWarehouseCard } from './Warehouses';
 
 const LINKS = [
   { href: '/receive', title: 'Receiving', desc: 'Check a kit against its packing list' },
@@ -14,6 +15,7 @@ const LINKS = [
 export function MorePage() {
   return (
     <Page title="More">
+      <CurrentWarehouseCard />
       <div class="list">
         {LINKS.map((l) => (
           <a class="list-item row" href={l.href}>

@@ -3,9 +3,10 @@ import { useLocation } from 'preact-iso';
 import { Page } from '../components/chrome';
 import { ShareFileButton } from '../components/ShareFileButton';
 import { CheckIcon } from '../components/icons';
-import { getMeta, setMeta } from '../data/idb';
+import { getGlobal, setGlobal } from '../data/idb';
 import { catalog, me } from '../data/store';
-import { api } from '../data/sync';
+import { api } from '../data/api';
+import { warehouseId } from '../data/workspace';
 import { TEMPLATES, type Template } from '../lib/labelTemplates';
 
 export function LabelsPage() {
@@ -26,7 +27,7 @@ export function LabelsPage() {
 
   // Remember the email choice; default the address to the signed-in user.
   useEffect(() => {
-    void getMeta<{ on: boolean; to: string } | null>('labelEmail', null).then((saved) => {
+    void getGlobal<{ on: boolean; to: string } | null>('labelEmail', null).then((saved) => {
       if (saved) { setEmailOn(saved.on); setEmailTo(saved.to); }
     });
   }, []);
@@ -59,7 +60,7 @@ export function LabelsPage() {
       form.append('file', file);
       const r = await api<{ to: string }>('/api/email/labels', { method: 'POST', body: form });
       setEmailResult({ ok: true, text: `Sent to ${r.to}` });
-      void setMeta('labelEmail', { on: true, to: emailTo.trim() });
+      void setGlobal('labelEmail', { on: true, to: emailTo.trim() });
     } catch (e) {
       const msg = e instanceof TypeError ? 'Emailing needs a connection.' : e instanceof Error ? e.message : String(e);
       setEmailResult({ ok: false, text: msg });
@@ -77,7 +78,7 @@ export function LabelsPage() {
       chosen.map((l) => ({
         code: l.code,
         description: showDesc ? l.description : null,
-        url: `${window.location.origin}/loc/${encodeURIComponent(l.code)}`,
+        url: `${window.location.origin}/w/${warehouseId.value}/loc/${encodeURIComponent(l.code)}`,
       })),
       start,
       outlines,
@@ -138,7 +139,7 @@ export function LabelsPage() {
             const on = (e.target as HTMLInputElement).checked;
             setEmailOn(on);
             setEmailResult(null);
-            void setMeta('labelEmail', { on, to: emailTo.trim() });
+            void setGlobal('labelEmail', { on, to: emailTo.trim() });
           }}
         /> Email the PDF
       </label>

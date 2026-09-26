@@ -86,6 +86,17 @@ export function getServerRows() {
   return serverRows;
 }
 
+/** Forget the open warehouse's rows (before switching to another). */
+export function resetStore() {
+  loaded.value = false;
+  serverRows = emptyTables();
+  outbox.value = [];
+  rejected.value = [];
+  lastSyncedAt.value = null;
+  syncError.value = null;
+  tables.value = emptyTables();
+}
+
 export async function loadFromIdb() {
   const d = await db();
   const t = emptyTables();
@@ -95,7 +106,6 @@ export async function loadFromIdb() {
   serverRows = t;
   outbox.value = await d.getAll('outbox');
   rejected.value = await d.getAll('rejected');
-  me.value = await getMeta('me', 'me');
   lastSyncedAt.value = await getMeta<string | null>('lastSyncedAt', null);
   recompute();
   loaded.value = true;

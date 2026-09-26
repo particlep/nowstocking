@@ -11,7 +11,8 @@ import { openPhoto } from '../components/PhotoViewer';
 import { onRefresh } from '../components/PullToRefresh';
 import { commit, insertOp } from '../data/mutate';
 import { catalog, tables } from '../data/store';
-import { api } from '../data/sync';
+import { api } from '../data/api';
+import { wpath } from '../data/workspace';
 import { matchPart } from '../lib/matchParts';
 
 const POLL_MS = 4000;
@@ -72,7 +73,7 @@ export function InstructionReviewPage() {
     let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
       try {
-        const j = await api<ImportJob>(`/api/import/jobs/${id}`);
+        const j = await api<ImportJob>(wpath(`/import/jobs/${id}`));
         if (stop) return;
         setJob(j);
         setError(null);
@@ -150,12 +151,12 @@ export function InstructionReviewPage() {
       }));
     }
     await commit(`Pick list ${meta.page || meta.section} from photos`, ops);
-    await api(`/api/import/jobs/${id}/committed`, { method: 'POST' }).catch(() => {});
+    await api(wpath(`/import/jobs/${id}/committed`), { method: 'POST' }).catch(() => {});
     route(`/pick/${listId}`, true);
   };
 
   const retry = async () => {
-    await api(`/api/import/jobs/${id}/start`, {
+    await api(wpath(`/import/jobs/${id}/start`), {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pages: failed.map((p) => p.page) }),
     });
     setPollKey((k) => k + 1);
@@ -186,7 +187,7 @@ export function InstructionReviewPage() {
         {reading > 0 && <div class="meta" style={{ fontSize: '14px' }}>Takes about a minute. You can lock your phone.</div>}
         <div class="chips">
           {job.pages.filter((p) => p.image_key).map((p) => (
-            <button class="chip" style={{ minHeight: '36px' }} onClick={() => openPhoto(`/api/import/image/${p.image_key}`, `Instructions photo ${p.page}`)}>
+            <button class="chip" style={{ minHeight: '36px' }} onClick={() => openPhoto(wpath(`/import/image/${p.image_key}`), `Instructions photo ${p.page}`)}>
               <PhotoIcon />Photo {p.page}
             </button>
           ))}
@@ -200,7 +201,7 @@ export function InstructionReviewPage() {
           style={{ alignSelf: 'flex-start' }}
           onClick={async () => {
             if (!confirm('Discard these photos without making a pick list?')) return;
-            await api(`/api/import/jobs/${id}`, { method: 'DELETE' });
+            await api(wpath(`/import/jobs/${id}`), { method: 'DELETE' });
             route('/pick', true);
           }}
         >Discard photos</button>

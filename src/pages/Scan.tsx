@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks';
 import { useLocation } from 'preact-iso';
 import { Page } from '../components/chrome';
-import { parseLocationCode, Scanner } from '../components/Scanner';
+import { locationHref, parseLocationLabel, Scanner } from '../components/Scanner';
 
 export function ScanPage() {
   const { route } = useLocation();
@@ -10,8 +10,8 @@ export function ScanPage() {
     <Page title="Scan">
       <Scanner
         onResult={(text) => {
-          const code = parseLocationCode(text);
-          if (code) route(`/loc/${encodeURIComponent(code)}`);
+          const loc = parseLocationLabel(text);
+          if (loc) route(locationHref(loc));
           else setMsg(`That isn't a location label: ${text}`);
         }}
       />

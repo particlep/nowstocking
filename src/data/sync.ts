@@ -1,27 +1,12 @@
 import { TABLE_NAMES, type MutationsResponse, type Rows, type SyncResponse, type TableName } from '../../shared/schema';
+import { api, SignInRequired } from './api';
 import { db, getMeta, setMeta } from './idb';
 import {
-  getServerRows, lastSyncedAt, me, outbox, rejected, setServerRows, syncError, syncState, type Tables,
+  getServerRows, lastSyncedAt, outbox, rejected, setServerRows, syncError, syncState, type Tables,
 } from './store';
+import { refreshIdentity, warehouseId, wpath } from './workspace';
 
-export class SignInRequired extends Error {}
-
-/**
- * Fetch an API route. When the Access session has expired, Access answers with a redirect
- * to its login page instead of JSON. Detect that and ask for sign-in; never drop the outbox.
- */
-export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, { ...init, redirect: 'manual', credentials: 'same-origin' });
-  if (res.type === 'opaqueredirect' || res.status === 401 || res.status === 403) throw new SignInRequired();
-  const type = res.headers.get('content-type') ?? '';
-  if (!type.includes('application/json')) {
-    if (type.includes('text/html')) throw new SignInRequired();
-    throw new Error(`Unexpected response ${res.status}`);
-  }
-  const body = (await res.json()) as T & { error?: string };
-  if (!res.ok) throw new Error(body.error ?? `Request failed (${res.status})`);
-  return body;
-}
+export { api, SignInRequired };
 
 const PUSH_BATCH = 25;
 
@@ -29,7 +14,7 @@ async function push() {
   const d = await db();
   for (let rounds = 0; rounds < 200 && outbox.value.length; rounds++) {
     const batch = outbox.value.slice(0, PUSH_BATCH);
-    const res = await api<MutationsResponse>('/api/mutations', {
+    const res = await api<MutationsResponse>(wpath('/mutations'), {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ mutations: batch.map((e) => e.mutation) }),
@@ -55,10 +40,10 @@ async function push() {
 async function pull() {
   const d = await db();
   const since = await getMeta<number>('lastVersion', 0);
-  let res = await api<SyncResponse>(`/api/sync?since=${since}`);
+  let res = await api<SyncResponse>(wpath(`/sync?since=${since}`));
   if (!res.full && res.version < since) {
     // The server's version went backwards: it's a new or reset database. Replace everything.
-    res = await api<SyncResponse>('/api/sync?since=0');
+    res = await api<SyncResponse>(wpath('/sync?since=0'));
   }
   const base = getServerRows();
   const next = { ...base } as Tables;
@@ -83,13 +68,6 @@ async function pull() {
   setServerRows(next);
 }
 
-async function loadMe() {
-  if (me.value !== 'me') return;
-  const r = await api<{ email: string }>('/api/me');
-  me.value = r.email;
-  await setMeta('me', r.email);
-}
-
 let running: Promise<void> | null = null;
 let again = false;
 
@@ -108,9 +86,11 @@ export function sync(): Promise<void> {
       }
       syncState.value = 'syncing';
       try {
-        await loadMe();
-        await push();
-        await pull();
+        await refreshIdentity();
+        if (warehouseId.value) {
+          await push();
+          await pull();
+        }
         syncState.value = 'idle';
         syncError.value = null;
       } catch (e) {

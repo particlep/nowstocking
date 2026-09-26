@@ -6,6 +6,7 @@ import { CloseIcon, SearchIcon } from '../components/icons';
 import { getMeta, setMeta } from '../data/idb';
 import { catalog, loaded } from '../data/store';
 import { search } from '../lib/search';
+import { allWarehouses, current } from '../data/workspace';
 
 const MAX_RECENT = 12;
 
@@ -38,6 +39,11 @@ export function SearchPage() {
 
   return (
     <Page title="Find a part">
+      {allWarehouses.value.length > 1 && current.value && (
+        <a class="chip" href="/warehouses" style={{ alignSelf: 'flex-start', textDecoration: 'none', color: 'inherit', minHeight: '32px' }}>
+          {current.value.warehouse.name} · switch
+        </a>
+      )}
       <label class="search">
         <SearchIcon />
         <input

@@ -1,7 +1,8 @@
 import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 import type { ImportKind } from '../../shared/importTypes';
-import { api } from '../data/sync';
+import { api } from '../data/api';
+import { wpath } from '../data/workspace';
 import { toJpeg } from '../lib/images';
 
 /**
@@ -29,7 +30,7 @@ export function PhotoUpload({ kind, noun, startLabel, onStarted, titleField, chi
     try {
       let id = jobId;
       if (!id) {
-        id = (await api<{ id: string }>('/api/import/jobs', {
+        id = (await api<{ id: string }>(wpath('/import/jobs'), {
           method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ page_count: files.length, kind, title: titleField ? title.trim() : undefined }),
         })).id;
         setJobId(id);
@@ -37,11 +38,11 @@ export function PhotoUpload({ kind, noun, startLabel, onStarted, titleField, chi
       for (let i = uploaded; i < files.length; i++) {
         setProgress(`Uploading ${noun} ${i + 1} of ${files.length}…`);
         const jpeg = await toJpeg(files[i]);
-        await api(`/api/import/jobs/${id}/pages/${i + 1}`, { method: 'PUT', headers: { 'content-type': 'image/jpeg' }, body: jpeg });
+        await api(wpath(`/import/jobs/${id}/pages/${i + 1}`), { method: 'PUT', headers: { 'content-type': 'image/jpeg' }, body: jpeg });
         setUploaded(i + 1);
       }
       setProgress('Starting…');
-      await api(`/api/import/jobs/${id}/start`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+      await api(wpath(`/import/jobs/${id}/start`), { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
       onStarted(id);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

@@ -3,11 +3,12 @@ import { useLocation } from 'preact-iso';
 import { effectiveLocation, formatLocations } from '../../shared/inventory';
 import type { Op } from '../../shared/schema';
 import { LocationPicker } from '../components/LocationPicker';
-import { parseLocationCode, Scanner } from '../components/Scanner';
+import { parseLocationLabel, Scanner } from '../components/Scanner';
 import { Page } from '../components/chrome';
 import { CheckIcon, PlusIcon, ScanIcon, SearchIcon, UndoIcon } from '../components/icons';
 import { createLocation, guessLocationType, putAway, undo } from '../data/actions';
 import { catalog } from '../data/store';
+import { warehouseId } from '../data/workspace';
 import { search } from '../lib/search';
 
 interface Placed { itemId: number; undo: Op[]; at: number }
@@ -19,6 +20,7 @@ export function PutAwayPage() {
   const [picking, setPicking] = useState<'scan' | 'type'>('scan');
   const [q, setQ] = useState('');
   const [placed, setPlaced] = useState<Placed[]>([]);
+  const [wrongWarehouse, setWrongWarehouse] = useState<string | null>(null);
   const [toastFor, setToastFor] = useState<number | null>(null); // `at` of the placement the undo bar is for
   const hits = useMemo(() => search(cat, q, 25), [cat, q]);
   const loc = locId ? cat.locations.get(locId) : undefined;
@@ -45,7 +47,21 @@ export function PutAwayPage() {
           <button class={picking === 'type' ? 'on' : ''} onClick={() => setPicking('type')}>Type code</button>
         </div>
         {picking === 'scan' ? (
-          <Scanner onResult={(t) => { const c = parseLocationCode(t); if (c) void setLocation(c); }} />
+          <>
+          <Scanner
+            onResult={(t) => {
+              const loc = parseLocationLabel(t);
+              if (!loc) return;
+              if (loc.warehouseId && loc.warehouseId !== warehouseId.value) {
+                setWrongWarehouse(loc.code);
+                return;
+              }
+              setWrongWarehouse(null);
+              void setLocation(loc.code);
+            }}
+          />
+          {wrongWarehouse && <p class="banner warn">{wrongWarehouse} belongs to a different warehouse. Switch warehouses from More first.</p>}
+          </>
         ) : (
           <LocationPicker onPick={(id) => { setLocId(id); setPlaced([]); }} />
         )}
