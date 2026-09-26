@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { useLocation } from 'preact-iso';
 import { effectiveLocation, formatLocations } from '../../shared/inventory';
 import type { Op } from '../../shared/schema';
@@ -19,6 +19,7 @@ export function PutAwayPage() {
   const [picking, setPicking] = useState<'scan' | 'type'>('scan');
   const [q, setQ] = useState('');
   const [placed, setPlaced] = useState<Placed[]>([]);
+  const [toastFor, setToastFor] = useState<number | null>(null); // `at` of the placement the undo bar is for
   const hits = useMemo(() => search(cat, q, 25), [cat, q]);
   const loc = locId ? cat.locations.get(locId) : undefined;
 
@@ -28,6 +29,12 @@ export function PutAwayPage() {
     setLocId(id);
     setPlaced([]);
   };
+
+  useEffect(() => {
+    if (toastFor == null) return;
+    const t = setTimeout(() => setToastFor(null), 2500);
+    return () => clearTimeout(t);
+  }, [toastFor]);
 
   if (!loc) {
     return (
@@ -48,6 +55,12 @@ export function PutAwayPage() {
 
   const last = placed[placed.length - 1];
   const lastItem = last ? cat.items.get(last.itemId) : undefined;
+  const undoLast = async () => {
+    if (!last) return;
+    await undo('Undo put away', last.undo);
+    setPlaced(placed.slice(0, -1));
+    setToastFor(null);
+  };
   return (
     <Page title="Put away">
       <section class="card accent-edge row" style={{ gap: '14px', padding: '14px' }}>
@@ -76,7 +89,9 @@ export function PutAwayPage() {
                 class={`item-card${h.rank === 5 ? ' indent' : ''}`}
                 onClick={async () => {
                   const u = await putAway(catalog.value, h.item, loc.id);
-                  setPlaced([...placed, { itemId: h.item.id, undo: u, at: Date.now() }]);
+                  const at = Date.now();
+                  setPlaced([...placed, { itemId: h.item.id, undo: u, at }]);
+                  setToastFor(at);
                   setQ('');
                 }}
               >
@@ -97,32 +112,26 @@ export function PutAwayPage() {
         <>
           <div class="section-title">In {loc.code} this session · {placed.length}</div>
           <div class="list">
-            {[...placed].reverse().map((p) => {
+            {[...placed].reverse().map((p, i) => {
               const it = cat.items.get(p.itemId);
               if (!it) return null;
               return (
-                <a class="list-item row" href={`/item/${it.id}`}>
-                  <CheckIcon style={{ width: '18px', height: '18px', color: 'var(--ok)' }} />
-                  <span class="code grow" style={{ fontSize: '15px' }}>{it.stock_code}</span>
+                <div class="list-item row">
+                  <CheckIcon style={{ width: '18px', height: '18px', color: 'var(--ok)', flexShrink: 0 }} />
+                  <a class="code grow" href={`/item/${it.id}`} style={{ fontSize: '15px', color: 'inherit', textDecoration: 'none' }}>{it.stock_code}</a>
                   <span class="meta">{new Date(p.at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>
-                </a>
+                  {i === 0 && <button class="btn small" onClick={undoLast} aria-label={`Undo putting ${it.stock_code} in ${loc.code}`}><UndoIcon />Undo</button>}
+                </div>
               );
             })}
           </div>
         </>
       )}
 
-      {last && lastItem && <div style={{ height: '64px' }} aria-hidden="true" />}
-      {last && lastItem && (
+      {last && lastItem && toastFor === last.at && (
         <div class="toast" role="status">
           <span class="grow">{lastItem.stock_code} put in <strong>{loc.code}</strong></span>
-          <button
-            class="btn"
-            onClick={async () => {
-              await undo('Undo put away', last.undo);
-              setPlaced(placed.slice(0, -1));
-            }}
-          ><UndoIcon />Undo</button>
+          <button class="btn" onClick={undoLast}><UndoIcon />Undo</button>
         </div>
       )}
     </Page>
