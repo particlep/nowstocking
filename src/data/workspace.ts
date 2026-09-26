@@ -42,7 +42,8 @@ export async function openWarehouse(id: string) {
 /** Startup, works offline: the last identity and warehouse this phone saw. */
 export async function loadIdentity() {
   authMode.value = await getGlobal<'access' | 'email'>('authMode', 'access');
-  void api<{ mode: 'access' | 'email' }>('/api/auth/config')
+  // Wait for the answer (offline it fails fast), so the right sign-in screen shows from the start.
+  await api<{ mode: 'access' | 'email' }>('/api/auth/config')
     .then((r) => { authMode.value = r.mode; return setGlobal('authMode', r.mode); })
     .catch(() => {});
   identity.value = await getGlobal<MeResponse | null>('identity', null);

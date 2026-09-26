@@ -71,7 +71,11 @@ export function LabelsPage() {
 
   const makePdf = async () => {
     // jsPDF is large; load it only when a PDF is made.
-    const { buildLabelsPdf } = await import('../lib/labels');
+    const { buildLabelsPdf } = await import('../lib/labels').catch(() => {
+      // An update removed this version's files. Reload into the new version.
+      window.location.reload();
+      throw new Error('Updating the app. Try again in a moment.');
+    });
     const chosen = locations.filter((l) => selected.has(l.id));
     const doc = buildLabelsPdf(
       t,

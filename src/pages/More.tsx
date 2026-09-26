@@ -37,7 +37,7 @@ export function MorePage() {
           <div class="meta">Parts inventory · find it, scan it, pull it</div>
         </div>
       </div>
-      <p class="meta center">Signed in as {me.value}</p>
+      <p class="meta center">Signed in as {me.value} · version {__APP_VERSION__}</p>
     </Page>
   );
 }

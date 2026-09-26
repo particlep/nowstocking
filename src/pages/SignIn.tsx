@@ -133,6 +133,7 @@ export function SignInPage() {
         </form>
       )}
       {error && <p class="banner bad">{error}</p>}
+      <p class="meta center" style={{ fontSize: '12px' }}>Version {__APP_VERSION__}</p>
     </main>
   );
 }

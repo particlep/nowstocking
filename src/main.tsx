@@ -1,6 +1,6 @@
 import { render } from 'preact';
 import { registerSW } from 'virtual:pwa-register';
-import { App, updateReady } from './app';
+import { App } from './app';
 import { startSyncLoop } from './data/sync';
 import { loadIdentity } from './data/workspace';
 import '@fontsource/barlow-condensed/latin-700.css';
@@ -12,10 +12,9 @@ import '@fontsource/ibm-plex-sans/latin-600.css';
 import '@fontsource/ibm-plex-sans/latin-700.css';
 import './styles.css';
 
-// A new version waits for the user; the banner in the app offers it. Check for one every hour.
-const updateSW = registerSW({
+// New versions activate in the background and apply on the next page load. Check for one every hour.
+registerSW({
   immediate: true,
-  onNeedRefresh: () => { updateReady.value = () => void updateSW(true); },
   onRegisteredSW: (_url, reg) => { if (reg) setInterval(() => void reg.update(), 60 * 60 * 1000); },
 });
 

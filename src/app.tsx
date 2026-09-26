@@ -1,4 +1,3 @@
-import { signal } from '@preact/signals';
 import { LocationProvider, Route, Router, useLocation } from 'preact-iso';
 import { hidesTabs, TabBar } from './components/chrome';
 import { PhotoViewer } from './components/PhotoViewer';
@@ -26,22 +25,6 @@ import { SearchPage } from './pages/Search';
 import { WarehouseLocationPage } from './pages/WarehouseLocation';
 import { WarehousesPage } from './pages/Warehouses';
 import { SettingsPage } from './pages/Settings';
-
-/** Set when a new version of the app is downloaded and waiting. Calling it reloads into the new version. */
-export const updateReady = signal<(() => void) | null>(null);
-
-function UpdateBanner() {
-  const apply = updateReady.value;
-  const { path } = useLocation();
-  // Never interrupt sign-in or a line review; the update applies next time instead.
-  if (!apply || path === '/signin' || hidesTabs(path)) return null;
-  return (
-    <div class="banner row" style={{ margin: 'calc(env(safe-area-inset-top) + 8px) 16px 0', alignItems: 'center' }}>
-      <span class="grow small">A new version of the app is ready.</span>
-      <button class="btn small primary" onClick={apply}>Update</button>
-    </div>
-  );
-}
 
 function SignInBanner() {
   if (syncState.value !== 'signin') return null;
@@ -80,7 +63,6 @@ export function App() {
       <Shell>
         <PullToRefresh />
         <SignInBanner />
-        <UpdateBanner />
         <Router>
           <Route path="/" component={SearchPage} />
           <Route path="/scan" component={ScanPage} />
