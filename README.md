@@ -47,8 +47,10 @@ machines and furniture.
  │ Preact + preact-iso        │ ─────────▶ │ Access (email one-time PIN)               │
  │ IndexedDB: full copy       │            │   ▼                                       │
  │ Outbox of queued edits     │ ◀───────── │ Worker (Hono) + static assets             │
- │ Search, QR scan, PDFs      │   sync     │   ├─ D1: inventory, change log            │
- └────────────────────────────┘            │   ├─ R2: packing list / plans photos      │
+ │ Search, QR scan, PDFs      │   sync     │   ├─ Durable Object per warehouse:        │
+ └────────────────────────────┘            │   │    inventory, sync, change log        │
+                                           │   ├─ D1: users, accounts, warehouses      │
+                                           │   ├─ R2: packing list / plans photos      │
                                            │   ├─ Workflows: read photos with Claude   │
                                            │   └─ Email Sending: label PDFs            │
                                            └───────────────────────────────────────────┘
@@ -58,7 +60,7 @@ machines and furniture.
 |---|---|
 | Frontend | Preact, preact-iso, Vite, vite-plugin-pwa, TypeScript |
 | API | Cloudflare Worker with Hono, served from the same origin as the app |
-| Data | D1 (SQLite). R2 for photos |
+| Data | A Durable Object (SQLite) per warehouse. D1 for the directory of users and accounts. R2 for photos |
 | Background jobs | Cloudflare Workflows. Each photo is its own retried step |
 | Photo reading | Claude API (`claude-opus-5`) with structured output |
 | Auth | Cloudflare Access. The Worker verifies the Access JWT on every API call |
@@ -70,18 +72,34 @@ machines and furniture.
 
 The phone keeps a full copy of the inventory in IndexedDB and reads only from it, so search and lookup work with no
 signal. Every edit is a *mutation*: a list of field-level insert, update or delete ops with a client-generated UUID. It's
-applied locally right away and queued in an outbox. The Worker applies each mutation at most once, as one D1 transaction.
-It stamps every row with a version number from a global counter and writes a field-level change log. Phones pull
+applied locally right away and queued in an outbox. The warehouse's Durable Object applies each mutation at most once,
+as one SQLite transaction. It stamps every row with a version number from the warehouse's counter and writes a
+field-level change log. Phones pull
 `version > last seen`, including soft-delete tombstones. Row ids are random 52-bit integers made on the phone, so rows
 created offline never need renumbering. Two people editing different fields of the same part both keep their changes.
+
+### Accounts and warehouses
+
+- **User:** a person who signs in.
+- **Account:** a team, with owner, admin and member roles. A user can belong to more than one.
+- **Warehouse:** a build or storage space inside an account, such as "RV-14A" or "Garage shelves". Each has its own
+  parts, locations, pick lists and labels.
+
+Each warehouse's data lives in its own Durable Object, so one warehouse can never read another's rows. The Worker checks
+the D1 directory on every request to decide who may open which warehouse. Label QR codes include the warehouse
+(`/w/<id>/loc/B03`), so labels from two builds never collide.
+
+A self-hosted install runs with `SIGNUP_MODE = "single"`. Everyone who gets past Access joins one account, and the first
+person to sign in is its owner. The hosted service uses `"open"`, where each new user gets their own account.
 
 ## Project layout
 
 ```
 src/            Phone app: pages, components, IndexedDB store, sync, search
-worker/         API: Access auth, sync, mutations, photo import, Workflow, email
+worker/         API: auth, directory (D1), routing, photo import, Workflow, email
+worker/warehouse/  The Warehouse Durable Object: schema, mutations, sync, history, imports
 shared/         Types and inventory rules used by both (effective location, CSV)
-migrations/     D1 schema
+migrations/     D1 directory schema (warehouse schema is in worker/warehouse/schema.ts)
 site/           The public nowstocking.com landing page (static, separate Worker)
 docs/SPEC.md    The product spec and decisions
 ```
@@ -113,6 +131,9 @@ Put the new `database_id` into `wrangler.jsonc`, then apply the schema:
 ```sh
 npm run db:migrate:remote
 ```
+
+The database only holds the directory: users, accounts and warehouses. Each warehouse's inventory lives in a Durable
+Object that is created automatically the first time the warehouse is opened.
 
 ### 3. Point it at your domain
 
@@ -191,9 +212,12 @@ Photo import needs `ANTHROPIC_API_KEY` in `.dev.vars`. Workflows, D1 and R2 all 
 with the D1 migrations applied to a fresh local database:
 
 - **`test/worker.test.ts`**: the API end to end.
-  - Auth refuses unconfigured and tokenless requests.
-  - Mutations are idempotent, merge per field, and reject bad edits without blocking good ones.
-  - Deletes sync as tombstones, the change history records moves, the D1 query limit is respected, and CSV export works.
+  - Sign-in refuses unconfigured and tokenless requests.
+  - Self-hosted and hosted sign-up work, and roles are enforced.
+  - Accounts can't reach each other's warehouses or photos.
+  - Warehouses keep separate inventories.
+  - Mutations are idempotent, merge per field, and roll back completely when rejected.
+  - Deletes sync as tombstones, large imports apply in one request, the change history records moves, and CSV export works.
 - **`test/shared.test.ts`**: inventory rules. Effective location (bag inheritance, overrides, splits), remaining counts, and CSV.
 - **`test/search.test.ts`**: search ranking, and matching plans part numbers to inventory.
 

@@ -69,7 +69,22 @@ One PWA on my iPhone that does lookup, scanning, put-away, receiving, and pick l
 
 [ASSUMPTION] Everything except the Claude API calls fits in the Cloudflare free tier at this data size.
 
-## Data Model (D1)
+## Accounts and Warehouses
+
+- **Directory (D1):** users, accounts, memberships (owner, admin, member) and warehouses. See `migrations/0001_directory.sql`.
+- **Warehouse data:** each warehouse is a Durable Object (`Warehouse`) with its own SQLite database, holding the tables
+  below plus import jobs. Its schema is in `worker/warehouse/schema.ts`. Sync versions are per warehouse. Mutations
+  apply as SQLite transactions, with no batching limits.
+- **Routing:** every inventory route is `/api/w/<warehouse>/...`. The Worker checks membership in D1 before calling the
+  warehouse's Durable Object.
+- **Sign-up modes:** `SIGNUP_MODE=single` (self-hosted: one account that everyone joins, first user is owner), or
+  `open` (hosted: each new user gets an account and a "Main" warehouse).
+- **Labels:** labels encode `https://<host>/w/<warehouse>/loc/<code>`. Opening one switches the app to that warehouse.
+- **Phone:** the phone keeps one IndexedDB per warehouse, plus an app-level store for identity and the open warehouse.
+  More → Warehouses switches, adds (owner/admin), renames (owner/admin) and archives (owner) warehouses.
+- **Later (hosted, step 2):** email one-time-code sign-in, invites and member management, usage limits, then billing.
+
+## Data Model (per warehouse)
 
 Every table has `version`, `updated_at`, `updated_by`, and `deleted_at`:
 
