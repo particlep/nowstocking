@@ -326,6 +326,13 @@ If the Cloudflare Access session expires while offline, API calls fail on reconn
 7. Commit writes the kit and items as one mutation. It warns about existing items in the kit, failed pages, and unreviewed flagged lines.
 8. Deleting an import removes its photos from R2. Committed items stay.
 
+## Pick Lists From Instruction Photos
+
+1. In the Pick tab, tap From photos and take a photo of each plans page for the step.
+2. The same background Workflow reads each photo (`kind = 'instructions'`) and lists every part number in the step text and figure callouts, plus the page label (e.g. 10-27), section, a short title, and any stated quantity (e.g. "2X"). Drill sizes, figure references and wire colors are ignored. Harnesses and wire labels are tagged electrical.
+3. Review (`/pick/photos/:job`) merges parts across photos. Each part shows where it's stored (one line per kit it shipped in). Parts in inventory are ticked by default. Parts not found show "Not in inventory" with close matches to pick from (a misread, or F-01412 vs F-01412C).
+4. Page, section and title are editable. Create pick list makes the list and its lines. If a pick list for that page exists, the parts can be added to it instead, skipping ones already there.
+
 ## Labels
 
 Standard paper Avery labels from Staples (or Staples-brand equivalents).

@@ -1,11 +1,15 @@
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { useLocation, useRoute } from 'preact-iso';
 import { effectiveLocation, fmtQty, formatLocations, remaining, type Catalog } from '../../shared/inventory';
 import { toSearchKey } from '../../shared/normalize';
 import { PROBLEM_STATUSES, type Item, type PickListLine } from '../../shared/schema';
 import { StatusBadge } from '../components/ItemRow';
 import { Page } from '../components/chrome';
-import { PlusIcon } from '../components/icons';
+import type { ImportJobSummary } from '../../shared/importTypes';
+import { CameraIcon, CheckIcon, ChevronIcon, PlusIcon } from '../components/icons';
+import { PhotoUpload } from '../components/PhotoUpload';
+import { onRefresh } from '../components/PullToRefresh';
+import { api } from '../data/sync';
 import { consume } from '../data/actions';
 import { commit, deleteOp, insertOp, updateOp } from '../data/mutate';
 import { catalog, loaded, tables } from '../data/store';
@@ -18,9 +22,20 @@ export function PickListsPage() {
   const lists = [...tables.value.pick_lists.values()].filter((p) => !p.deleted_at)
     .sort((a, b) => byNatural(a.section, b.section) || byNatural(a.page ?? '', b.page ?? ''));
   const lines = [...tables.value.pick_list_lines.values()].filter((l) => !l.deleted_at);
+  const [mode, setMode] = useState<'none' | 'photo' | 'manual'>('none');
   const [section, setSection] = useState('');
   const [page, setPage] = useState('');
   const [title, setTitle] = useState('');
+  const [jobs, setJobs] = useState<ImportJobSummary[]>([]);
+
+  useEffect(() => {
+    const load = () =>
+      api<{ jobs: ImportJobSummary[] }>('/api/import/jobs?kind=instructions')
+        .then((r) => setJobs(r.jobs.filter((j) => j.status !== 'committed')))
+        .catch(() => {});
+    void load();
+    return onRefresh(load);
+  }, []);
 
   const create = async () => {
     const op = insertOp('pick_lists', { section: section.trim(), page: page.trim() || null, title: title.trim() || null });
@@ -30,28 +45,82 @@ export function PickListsPage() {
 
   return (
     <Page title="Pick lists">
-      <div class="card stack">
-        <div class="row">
-          <label class="field grow"><span>Section</span><input class="input" inputMode="numeric" placeholder="08" value={section} onInput={(e) => setSection((e.target as HTMLInputElement).value)} /></label>
-          <label class="field grow"><span>Page</span><input class="input" placeholder="08-03" value={page} onInput={(e) => setPage((e.target as HTMLInputElement).value)} /></label>
-        </div>
-        <label class="field"><span>Title (optional)</span><input class="input" placeholder="Horizontal stabilizer spars" value={title} onInput={(e) => setTitle((e.target as HTMLInputElement).value)} /></label>
-        <button class="btn primary" disabled={!section.trim()} onClick={create}>Create pick list</button>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px' }}>
+        <button class={`btn${mode === 'photo' ? ' primary' : ''}`} onClick={() => setMode(mode === 'photo' ? 'none' : 'photo')}><CameraIcon />From photos</button>
+        <button class={`btn${mode === 'manual' ? ' primary' : ''}`} onClick={() => setMode(mode === 'manual' ? 'none' : 'manual')}><PlusIcon />Type it in</button>
       </div>
+
+      {mode === 'photo' && (
+        <div class="card">
+          <PhotoUpload
+            kind="instructions"
+            noun="photo"
+            startLabel={(n) => `Read ${n || ''} photo${n === 1 ? '' : 's'}`}
+            onStarted={(id) => route(`/pick/photos/${id}`)}
+          >
+            <strong>Pick list from the plans</strong>
+            <span class="meta" style={{ fontSize: '14px' }}>
+              Take a photo of each instruction page for this step. Every part number on the page is found and
+              matched to where it's stored. You review the list before it's made.
+            </span>
+          </PhotoUpload>
+        </div>
+      )}
+
+      {mode === 'manual' && (
+        <div class="card stack">
+          <div class="row">
+            <label class="field grow"><span>Section</span><input class="input" inputMode="numeric" placeholder="10" value={section} onInput={(e) => setSection((e.target as HTMLInputElement).value)} /></label>
+            <label class="field grow"><span>Page</span><input class="input" placeholder="10-27" value={page} onInput={(e) => setPage((e.target as HTMLInputElement).value)} /></label>
+          </div>
+          <label class="field"><span>Title (optional)</span><input class="input" placeholder="Aft deck" value={title} onInput={(e) => setTitle((e.target as HTMLInputElement).value)} /></label>
+          <button class="btn primary" disabled={!section.trim()} onClick={create}>Create pick list</button>
+        </div>
+      )}
+
+      {jobs.length > 0 && (
+        <>
+          <div class="section-title">From photos</div>
+          <div class="list">
+            {jobs.map((j) => (
+              <a class="list-item row" href={`/pick/photos/${j.id}`}>
+                <span class="grow">
+                  <span style={{ display: 'block', fontWeight: 600 }}>{j.page_label ?? `${j.page_count} photo${j.page_count === 1 ? '' : 's'}`}</span>
+                  <span class="meta">
+                    {j.status === 'processing' ? 'Reading…' : j.status === 'uploading' ? 'Upload not finished' : j.pages_failed ? 'Some photos failed' : 'Ready to review'}
+                  </span>
+                </span>
+                <ChevronIcon class="chev" />
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+
+      {lists.length > 0 && <div class="section-title">Your pick lists</div>}
       {lists.length > 0 && (
         <div class="list">
           {lists.map((l) => {
             const mine = lines.filter((x) => x.pick_list_id === l.id);
             const pulled = mine.filter((x) => x.pulled).length;
             return (
-              <a class="list-item" href={`/pick/${l.id}`}>
-                <div class="code">{l.page ?? `Section ${l.section}`}</div>
-                {l.title && <div class="desc">{l.title}</div>}
-                <div class="small muted">{mine.length ? `${pulled} of ${mine.length} pulled` : 'No lines yet'}</div>
+              <a class="list-item row" href={`/pick/${l.id}`}>
+                <span class="grow">
+                  <span class="row" style={{ alignItems: 'baseline', gap: '8px' }}>
+                    <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '24px', lineHeight: 1.1 }}>{l.page ?? `Section ${l.section}`}</span>
+                    {l.title && <span class="desc">{l.title}</span>}
+                  </span>
+                  <span class="meta">{mine.length ? `${pulled} of ${mine.length} pulled` : 'No parts yet'}</span>
+                </span>
+                {mine.length > 0 && pulled === mine.length && <CheckIcon style={{ width: '20px', height: '20px', color: 'var(--ok)' }} />}
+                <ChevronIcon class="chev" />
               </a>
             );
           })}
         </div>
+      )}
+      {lists.length === 0 && jobs.length === 0 && mode === 'none' && (
+        <p class="muted center">Make a pick list for each plans page: snap the page, or type the parts in.</p>
       )}
     </Page>
   );

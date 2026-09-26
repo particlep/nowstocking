@@ -1,4 +1,5 @@
 import { Hono, type Context } from 'hono';
+import type { ImportKind } from '../shared/importTypes';
 import { buildCatalog, buildCsv } from '../shared/inventory';
 import type { Mutation } from '../shared/schema';
 import { TABLE_NAMES } from '../shared/schema';
@@ -59,12 +60,14 @@ const job = async (c: Context<AppEnv>, fn: (jobId: string) => Promise<Response>)
   }
 };
 
-app.get('/import/jobs', async (c) => c.json({ jobs: await listJobs(c.env.DB) }));
+app.get('/import/jobs', async (c) =>
+  c.json({ jobs: await listJobs(c.env.DB, c.req.query('kind') === 'instructions' ? 'instructions' : 'packing_list') }),
+);
 
 app.post('/import/jobs', async (c) => {
-  const body = await c.req.json<{ page_count?: number }>().catch(() => ({}) as { page_count?: number });
+  const body = await c.req.json<{ page_count?: number; kind?: ImportKind }>().catch(() => ({}) as { page_count?: number; kind?: ImportKind });
   try {
-    return c.json({ id: await createJob(c.env.DB, c.get('user'), Number(body.page_count)) });
+    return c.json({ id: await createJob(c.env.DB, c.get('user'), Number(body.page_count), body.kind ?? 'packing_list') });
   } catch (e) {
     if (e instanceof ImportError) return c.json({ error: e.message }, e.status);
     throw e;

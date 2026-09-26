@@ -8,6 +8,7 @@ import { AddItemPage } from './pages/AddItem';
 import { ImportListPage } from './pages/Import';
 import { ImportJobPage } from './pages/ImportJob';
 import { ImportRowPage } from './pages/ImportRow';
+import { InstructionReviewPage } from './pages/InstructionReview';
 import { ItemDetailPage } from './pages/ItemDetail';
 import { LabelsPage } from './pages/Labels';
 import { LocationDetailPage } from './pages/LocationDetail';
@@ -51,6 +52,7 @@ export function App() {
           <Route path="/receive" component={ReceivingListPage} />
           <Route path="/receive/:kit" component={ReceivingKitPage} />
           <Route path="/pick" component={PickListsPage} />
+          <Route path="/pick/photos/:id" component={InstructionReviewPage} />
           <Route path="/pick/:id" component={PickListDetailPage} />
           <Route path="/import" component={ImportListPage} />
           <Route path="/import/:id" component={ImportJobPage} />

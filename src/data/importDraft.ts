@@ -1,7 +1,7 @@
 // Local review state for one import job: the parsed rows plus the user's edits, kept in IndexedDB
 // so review survives app restarts. Pages that finish later are merged in as they arrive.
 import { signal } from '@preact/signals';
-import type { ImportJob, ParsedRow } from '../../shared/importTypes';
+import { packingResult, type ImportJob, type ParsedRow } from '../../shared/importTypes';
 import type { Unit } from '../../shared/schema';
 import { getMeta, setMeta } from './idb';
 
@@ -46,11 +46,11 @@ export async function clearDraft(jobId: string) {
 /** Add rows from pages that finished since the draft was last saved, keeping page order. */
 export async function mergeJob(job: ImportJob) {
   const d = await loadDraft(job.id);
-  const fresh = job.pages.filter((p) => p.status === 'done' && p.result && !d.pages.includes(p.page));
+  const fresh = job.pages.filter((p) => p.status === 'done' && packingResult(p) && !d.pages.includes(p.page));
   if (!fresh.length) return d;
   let rows = d.rows;
   for (const p of fresh) {
-    const added: DraftRow[] = p.result!.rows.map((r, i) => ({
+    const added: DraftRow[] = packingResult(p)!.rows.map((r, i) => ({
       ...r, key: `${p.page}-${i}`, page: p.page, unit: unitFor(r.description), reviewed: false,
     }));
     // Insert after the last row of any earlier page.

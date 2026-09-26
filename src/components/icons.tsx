@@ -19,6 +19,7 @@ export const ArrowIcon = (p: P) => <svg {...base} stroke-width={2.2} {...p}><pat
 export const UndoIcon = (p: P) => <svg {...base} stroke-width={2.4} {...p}><path d="M9 14 4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 0 12h-3" /></svg>;
 export const BagIcon = (p: P) => <svg {...base} {...p}><path d="M6 8h12l-1 12H7L6 8z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg>;
 export const PhotoIcon = (p: P) => <svg {...base} stroke-width={1.8} {...p}><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="11" r="2" /><path d="m21 16-5-5-8 8" /></svg>;
+export const CameraIcon = (p: P) => <svg {...base} {...p}><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>;
 export const AlertIcon = (p: P) => <svg {...base} stroke-width={2.2} {...p}><path d="M12 3 2 20h20L12 3z" /><path d="M12 10v4M12 17h.01" /></svg>;
 
 /** The NowStocking mark: scan brackets around a parts box. */

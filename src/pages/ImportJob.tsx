@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useLocation, useRoute } from 'preact-iso';
-import type { ImportJob } from '../../shared/importTypes';
+import { packingResult, type ImportJob } from '../../shared/importTypes';
 import { fmtQty } from '../../shared/inventory';
 import type { ItemType, Op } from '../../shared/schema';
 import { Page } from '../components/chrome';
@@ -66,7 +66,7 @@ export function ImportJobPage() {
     setPollKey((k) => k + 1); // resume polling
   };
 
-  const kitName = job.pages.find((p) => p.result?.kit_name)?.result?.kit_name;
+  const kitName = job.pages.map(packingResult).find((r) => r?.kit_name)?.kit_name;
   const firstFlagged = flagged[0];
 
   return (
@@ -175,7 +175,7 @@ function CommitPanel({ job, rows, flagged, failedPages }: { job: ImportJob; rows
   const { route } = useLocation();
   const cat = catalog.value;
   const kits = [...cat.kits.values()].filter((k) => k.code !== 'MISC');
-  const suggested = job.pages.find((p) => p.result?.kit_name)?.result?.kit_name ?? '';
+  const suggested = job.pages.map(packingResult).find((r) => r?.kit_name)?.kit_name ?? '';
   const [kitMode, setKitMode] = useState<'new' | 'existing'>('new');
   const [kitId, setKitId] = useState<number>(kits[0]?.id ?? 0);
   const [kitCode, setKitCode] = useState(() => guessKitCode(suggested));
