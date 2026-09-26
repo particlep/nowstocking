@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>NowStocking · Parts inventory for kit builders</title>
-<meta name="description" content="Know where every part is. NowStocking reads your packing lists, prints QR labels for your bins, and turns a photo of a plans page into a pick list. Open source, runs on your own Cloudflare account.">
+<meta name="description" content="Know where every part is. A parts inventory app for kit builders: it reads your packing lists, prints QR labels for your bins, and turns a photo of a plans page into a pick list. For kit planes, kit cars, boats and more. Open source, runs on your own Cloudflare account.">
 <link rel="canonical" href="https://nowstocking.com/">
 <meta property="og:title" content="NowStocking · Parts inventory for kit builders">
 <meta property="og:description" content="Find it, scan it, pull it. An open-source parts inventory app for your phone.">
@@ -151,6 +151,9 @@ h2 { font-family: var(--display); font-weight: 700; font-size: clamp(38px, 5vw, 
 .callout .btn { background: #fff; border-color: #fff; }
 .callout code { font: 600 15px var(--mono); background: rgb(255 255 255 / 0.1); padding: 2px 6px; border-radius: 6px; color: #fff; }
 
+.chips-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.chips-row span { padding: 10px 16px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); font-weight: 600; font-size: 16px; }
+
 footer { padding: 40px 0 56px; color: var(--muted); font-size: 15px; }
 footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
 footer .grow { flex: 1; min-width: 240px; }
@@ -194,7 +197,7 @@ footer .grow { flex: 1; min-width: 240px; }
             View the code
           </a>
         </div>
-        <p class="fine">Free and open source (MIT). Built for a Van's RV-14A build, and it works for any kit that ships with a packing list.</p>
+        <p class="fine">Free and open source (MIT). It started on a Van's RV-14A. It works for any Van's model, any kit plane, and any kit with a packing list and plans: kit cars, boats, CNC machines, furniture.</p>
       </div>
 
       <div class="iphone" role="img" aria-label="The app on an iPhone: typing 470ad45 finds rivet AN470AD4-5 in bin B03, and the same part from another kit on shelf S1-B.">
@@ -272,6 +275,19 @@ footer .grow { flex: 1; min-width: 240px; }
     </div>
   </section>
 
+  <section aria-labelledby="for-title" style="padding-bottom: 0;">
+    <div class="wrap">
+      <h2 id="for-title">For anything that comes in a crate</h2>
+      <p class="section-lede" style="margin-bottom: 20px;">
+        If your build arrives as bags of numbered parts with a packing list and a set of plans, NowStocking fits.
+      </p>
+      <div class="chips-row">
+        <span>Van's RV-14, RV-10, RV-12, RV-7, RV-8, RV-15…</span><span>Other kit aircraft</span><span>Kit cars</span>
+        <span>Boat kits</span><span>CNC and 3D printer kits</span><span>Furniture and cabinetry</span><span>Anything with a parts list</span>
+      </div>
+    </div>
+  </section>
+
   <section id="features" aria-labelledby="features-title">
     <div class="wrap">
       <h2 id="features-title">Made for the shop floor</h2>
@@ -337,7 +353,7 @@ footer .grow { flex: 1; min-width: 240px; }
   <div class="wrap">
     <span class="grow">
       NowStocking is open source under the MIT license. It isn't affiliated with or endorsed by Van's Aircraft or any other kit maker.
-      Part numbers shown are examples.
+      Part numbers shown are examples from a Van's build.
     </span>
     <a href="https://github.com/particlep/nowstocking">GitHub</a>
   </div>

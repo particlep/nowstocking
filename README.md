@@ -12,6 +12,12 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/particlep/nowstocking/actions/workflows/ci.yml"><img src="https://github.com/particlep/nowstocking/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-1b2a41" alt="MIT license"></a>
+  <img src="https://img.shields.io/badge/runs%20on-Cloudflare%20Workers-c2410c" alt="Runs on Cloudflare Workers">
+</p>
+
+<p align="center">
   <a href="https://nowstocking.com">nowstocking.com</a> ·
   <a href="#self-hosting">Self-hosting</a> ·
   <a href="docs/SPEC.md">Spec</a> ·
@@ -20,8 +26,10 @@
 
 ---
 
-NowStocking was built for a Van's RV-14A, where each kit arrives as a crate of bags and a multi-page packing list. It works
-for any kit that ships with a packing list.
+NowStocking started in the shop of a Van's RV-14A build, where each kit arrives as a crate of bags, a multi-page packing
+list and a binder of plans. Nothing in it is specific to one airplane. It works for any Van's model and for any kit that
+ships with a packing list and step-by-step plans. That includes other kit aircraft and also kit cars, boats, CNC
+machines and furniture.
 
 - **Import packing lists from photos.** Pages are read in the background by Claude. Lines that were hard to read are flagged for a quick review against the photo.
 - **Find any part fast.** Type `470ad45` and get `AN470AD4-5` with its bin, in big type. A part that shipped in two kits shows both locations.
@@ -142,13 +150,14 @@ Open your hostname in Safari on the phone, sign in, then **Share → Add to Home
 
 ### 7. Deploy on push (optional)
 
-`.github/workflows/deploy.yml` builds, applies D1 migrations and deploys on every push to `main`. Add two repository
-secrets:
+`.github/workflows/ci.yml` runs the type check and tests on every push and pull request. On `main`, it then applies D1
+migrations and deploys. To make it deploy your fork:
 
-- `CLOUDFLARE_ACCOUNT_ID`
-- `CLOUDFLARE_API_TOKEN`: create it from the *Edit Cloudflare Workers* template, then add **D1: Edit**.
-
-Remove the "Deploy landing page" step unless you also want to host the `site/` page.
+1. Change `github.repository == 'particlep/nowstocking'` in the deploy job to your repo.
+2. Add two repository secrets:
+   - `CLOUDFLARE_ACCOUNT_ID`
+   - `CLOUDFLARE_API_TOKEN`: create it from the *Edit Cloudflare Workers* template, then add **D1: Edit**.
+3. Remove the "Deploy landing page" step. It publishes `site/` to nowstocking.com.
 
 ### Costs
 
@@ -168,16 +177,41 @@ Photo import needs `ANTHROPIC_API_KEY` in `.dev.vars`. Workflows, D1 and R2 all 
 | Command | What it does |
 |---|---|
 | `npm run dev` | App and Worker with hot reload |
+| `npm test` | Tests, run in the Workers runtime against a local D1 |
+| `npm run typecheck` | Type-check the app, Worker and tests |
 | `npm run build` | Type-check and build |
 | `npm run deploy` | Build and deploy the app |
 | `npm run deploy:site` | Deploy the landing page in `site/` |
 | `npm run db:migrate:local` / `:remote` | Apply D1 migrations |
 
+## Tests
+
+`npm test` runs [Vitest](https://vitest.dev) with the
+[Cloudflare Vitest plugin](https://developers.cloudflare.com/workers/testing/vitest-integration/), inside `workerd`,
+with the D1 migrations applied to a fresh local database:
+
+- **`test/worker.test.ts`**: the API end to end.
+  - Auth refuses unconfigured and tokenless requests.
+  - Mutations are idempotent, merge per field, and reject bad edits without blocking good ones.
+  - Deletes sync as tombstones, the change history records moves, the D1 query limit is respected, and CSV export works.
+- **`test/shared.test.ts`**: inventory rules. Effective location (bag inheritance, overrides, splits), remaining counts, and CSV.
+- **`test/search.test.ts`**: search ranking, and matching plans part numbers to inventory.
+
+CI runs the type check and tests on every push and pull request, and deploys only when they pass.
+
 ## Adapting it to another kit
 
-The packing-list reader in `worker/import.ts` describes a sub-kit → bag → part list. That layout is common, but the
-prompt names Van's conventions. If your kit's lists look different, adjust the system prompt there. The instruction-page
-reader, in the same file, works from the part-number formats listed in its prompt.
+Most of the app doesn't care what you're building. Locations, labels, search, put-away, receiving and pick lists work
+for any parts with part numbers.
+
+The two photo readers in `worker/import.ts` are where kit conventions show up:
+
+- **The packing-list prompt** describes a sub-kit → bag → part list, with weights marked `(LB)`. That layout is common.
+  If your supplier's lists look different, describe them in `SYSTEM`.
+- **The plans-page prompt** lists example part-number formats (Van's `F-01412C`, AN/MS hardware). Add your
+  manufacturer's formats to `INSTRUCTIONS_SYSTEM` so it knows what to look for.
+
+Pull requests that make these prompts work for more kit makers are welcome.
 
 ## Contributing
 
@@ -187,4 +221,4 @@ PR. Schema changes go in a new numbered file in `migrations/`.
 ## License
 
 [MIT](LICENSE). NowStocking isn't affiliated with or endorsed by Van's Aircraft or any other kit manufacturer. Product
-names are used only to describe compatibility.
+names are used only to describe where it came from and what it works with.
