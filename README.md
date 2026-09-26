@@ -18,6 +18,7 @@
 </p>
 
 <p align="center">
+  <a href="https://app.nowstocking.com"><strong>Use it at app.nowstocking.com</strong></a> ·
   <a href="https://nowstocking.com">nowstocking.com</a> ·
   <a href="#self-hosting">Self-hosting</a> ·
   <a href="docs/SPEC.md">Spec</a> ·
@@ -104,7 +105,8 @@ All of these are `vars` in `wrangler.jsonc`:
 | `PHOTO_PAGES_PER_MONTH` | `"0"`: no limit | Photo pages Claude may read per account each month |
 | `EMAIL_FROM` | Sender for label PDFs, invites and sign-in codes | Same |
 
-Email sign-in also needs a secret: `openssl rand -base64 48 | npx wrangler secret put AUTH_SECRET`. Codes and session
+Email sign-in requests are also limited to 10 a minute per IP address (the `AUTH_LIMITER` rate-limit binding). Email
+sign-in also needs a secret: `openssl rand -base64 48 | npx wrangler secret put AUTH_SECRET`. Codes and session
 tokens are stored only as hashes. Codes expire after 10 minutes and lock after 5 wrong tries, and each address can
 request 5 codes an hour. With email sign-in, don't put Access in front of the app.
 
@@ -119,6 +121,13 @@ migrations/     D1 directory schema (warehouse schema is in worker/warehouse/sch
 site/           The public nowstocking.com landing page (static, separate Worker)
 docs/SPEC.md    The product spec and decisions
 ```
+
+## Hosted or self-hosted
+
+**app.nowstocking.com** runs this repo's `hosted` environment (`wrangler.jsonc → env.hosted`). It uses email sign-in, open
+sign-up and a monthly photo limit. Anyone can sign up with an email address.
+
+To run your own copy, follow the steps below. Your data stays in your Cloudflare account, behind your Access login.
 
 ## Self-hosting
 

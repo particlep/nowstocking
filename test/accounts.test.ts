@@ -12,8 +12,10 @@ const OPEN = { ...env, SIGNUP_MODE: 'open', EXPOSE_LOGIN_CODES: 'true' } as unkn
 let seq = 0;
 const email = (name: string) => `${name}-${++seq}@example.com`;
 
-async function req(e: Env, path: string, init: RequestInit & { cookie?: string; user?: string } = {}) {
+async function req(e: Env, path: string, init: RequestInit & { cookie?: string; user?: string; ip?: string } = {}) {
   const headers = new Headers(init.headers);
+  // Each request from its own address unless a test says otherwise, so the per-IP limit doesn't interfere.
+  headers.set('CF-Connecting-IP', init.ip ?? `10.0.${++seq % 250}.${seq % 250}`);
   if (init.cookie) headers.set('Cookie', init.cookie);
   if (init.user) headers.set('X-Dev-User', init.user);
   if (init.body && !headers.has('content-type')) headers.set('content-type', 'application/json');
@@ -82,6 +84,16 @@ describe('email sign-in', () => {
       method: 'POST', cookie, headers: { Origin: 'https://evil.example' }, body: JSON.stringify({ email: 'x@example.com' }),
     });
     expect(res.status).toBe(403);
+  });
+
+  it('limits sign-in requests per IP address', async () => {
+    const ip = '203.0.113.9';
+    const statuses = [];
+    for (let i = 0; i < 11; i++) {
+      statuses.push((await req(EMAIL_MODE, '/api/auth/start', { method: 'POST', ip, body: JSON.stringify({ email: email('flood') }) })).res.status);
+    }
+    expect(statuses.slice(0, 10).every((s) => s === 200)).toBe(true);
+    expect(statuses[10]).toBe(429);
   });
 
   it('is off for installs that use Access', async () => {

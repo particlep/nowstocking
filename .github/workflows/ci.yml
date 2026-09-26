@@ -54,3 +54,11 @@ jobs:
         run: npx wrangler deploy
       - name: Deploy landing page
         run: npx wrangler deploy --config site/wrangler.jsonc
+      - name: Build hosted app (app.nowstocking.com)
+        run: npm run build
+        env:
+          CLOUDFLARE_ENV: hosted
+      - name: Apply hosted D1 migrations
+        run: npx wrangler d1 migrations apply nowstocking-app --remote --env hosted
+      - name: Deploy hosted app
+        run: npx wrangler deploy

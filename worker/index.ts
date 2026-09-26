@@ -32,6 +32,16 @@ function fromRpcError(c: Context<AppEnv>, e: unknown) {
 
 app.get('/auth/config', (c) => c.json({ mode: authMode(c.env) }));
 
+/** 10 sign-in requests a minute per IP, so the form can't be used to flood inboxes or guess codes. */
+app.use('/auth/:step{start|verify}', async (c, next) => {
+  const limiter = (c.env as { AUTH_LIMITER?: RateLimit }).AUTH_LIMITER;
+  const ip = c.req.header('CF-Connecting-IP') ?? 'unknown';
+  if (limiter && !(await limiter.limit({ key: ip })).success) {
+    return c.json({ error: 'Too many sign-in attempts. Wait a minute and try again.' }, 429);
+  }
+  return next();
+});
+
 app.post('/auth/start', async (c) => {
   if (authMode(c.env) !== 'email') return c.json({ error: 'This install signs in through Cloudflare Access.' }, 400);
   const body = await c.req.json<{ email?: string }>().catch(() => ({}) as { email?: string });

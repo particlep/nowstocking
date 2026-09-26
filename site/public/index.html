@@ -172,6 +172,7 @@ footer .grow { flex: 1; min-width: 240px; }
       <a class="hide-sm" href="#how">How it works</a>
       <a class="hide-sm" href="#features">Features</a>
       <a href="https://github.com/particlep/nowstocking">GitHub</a>
+      <a href="https://app.nowstocking.com/">Sign in</a>
     </nav>
   </div>
 </header>
@@ -188,16 +189,20 @@ footer .grow { flex: 1; min-width: 240px; }
           shop with no signal.
         </p>
         <div class="actions">
-          <a class="btn primary" href="https://github.com/particlep/nowstocking#self-hosting">
+          <a class="btn primary" href="https://app.nowstocking.com/">
+            Start free
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+          <a class="btn" href="https://github.com/particlep/nowstocking#self-hosting">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
             Run your own
           </a>
-          <a class="btn" href="https://github.com/particlep/nowstocking">
+          <a class="btn" href="https://github.com/particlep/nowstocking" aria-label="View the code on GitHub">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.7.3 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></svg>
-            View the code
+            Code
           </a>
         </div>
-        <p class="fine">Free and open source (MIT). It started on a Van's RV-14A. It works for any Van's model, any kit plane, and any kit with a packing list and plans: kit cars, boats, CNC machines, furniture.</p>
+        <p class="fine">Sign in with just your email: no password, no card. Or run it on your own Cloudflare account, free and open source (MIT). It started on a Van's RV-14A. It works for any Van's model, any kit plane, and any kit with a packing list and plans: kit cars, boats, CNC machines, furniture.</p>
       </div>
 
       <div class="iphone" role="img" aria-label="The app on an iPhone: typing 470ad45 finds rivet AN470AD4-5 in bin B03, and the same part from another kit on shelf S1-B.">
@@ -324,9 +329,10 @@ footer .grow { flex: 1; min-width: 240px; }
   <section id="self-host" class="alt" aria-labelledby="host-title">
     <div class="wrap split">
       <div>
-        <h2 id="host-title">Runs on your Cloudflare account</h2>
+        <h2 id="host-title">Use ours, or run your own</h2>
         <p class="section-lede" style="margin-bottom: 24px;">
-          Your inventory lives in your own account, behind your own login. There's no NowStocking server holding your data.
+          The app at app.nowstocking.com is the same open-source code. Sign in with your email, invite your build partner,
+          and read 20 photo pages a month. Or deploy it to your own Cloudflare account, where your data never touches ours:
         </p>
         <ul class="stack-list">
           <li><strong>Workers</strong><span>The app and its API, on your own domain</span></li>
