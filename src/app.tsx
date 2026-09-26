@@ -4,6 +4,7 @@ import { PhotoViewer } from './components/PhotoViewer';
 import { PullToRefresh } from './components/PullToRefresh';
 import { syncError, syncState } from './data/store';
 import { authMode, warehouseId } from './data/workspace';
+import { AdminPage } from './pages/Admin';
 import { MembersPage } from './pages/Members';
 import { SignInPage } from './pages/SignIn';
 import { signIn } from './data/sync';
@@ -70,6 +71,7 @@ export function App() {
           <Route path="/w/:wid/loc/:code" component={WarehouseLocationPage} />
           <Route path="/warehouses" component={WarehousesPage} />
           <Route path="/members" component={MembersPage} />
+          <Route path="/admin" component={AdminPage} />
           <Route path="/signin" component={SignInPage} />
           <Route path="/item/new" component={AddItemPage} />
           <Route path="/item/:id" component={ItemDetailPage} />

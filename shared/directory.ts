@@ -17,6 +17,8 @@ export interface AccountInfo {
 export interface MeResponse {
   user: { id: string; email: string };
   accounts: AccountInfo[];
+  /** The service operator: sees the admin page. */
+  operator?: boolean;
 }
 
 /** Warehouse ids appear in label URLs: /w/<id>/loc/B03. */

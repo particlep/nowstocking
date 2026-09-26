@@ -66,6 +66,8 @@ export async function deleteUser(env: Env, email: string): Promise<DeleteSummary
       await db.batch([
         db.prepare('DELETE FROM invites WHERE account_id = ?').bind(m.id),
         db.prepare('DELETE FROM usage WHERE account_id = ?').bind(m.id),
+        // AI spend stays counted in monthly totals, but no longer points at the account.
+        db.prepare(`UPDATE ai_usage SET account_id = 'deleted', warehouse_id = 'deleted' WHERE account_id = ?`).bind(m.id),
         db.prepare('DELETE FROM warehouses WHERE account_id = ?').bind(m.id),
         db.prepare('DELETE FROM memberships WHERE account_id = ?').bind(m.id),
         db.prepare('DELETE FROM accounts WHERE id = ?').bind(m.id),

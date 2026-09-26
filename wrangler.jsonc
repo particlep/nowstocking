@@ -33,6 +33,11 @@
     // (comma-separated frontend hostnames) and the TURNSTILE_SECRET secret.
     "TURNSTILE_SITEKEY": "",
     "TURNSTILE_HOSTNAMES": "",
+    // Claude spend limits, in USD. 0 = unlimited. AI_ALLOWANCE_USD is each account's lifetime free allowance;
+    // AI_MONTHLY_CAP_USD caps all accounts together per month. Set OPERATOR_EMAILS as a secret (comma-separated):
+    // those people see the admin page and get limit alerts.
+    "AI_ALLOWANCE_USD": "0",
+    "AI_MONTHLY_CAP_USD": "0",
     // Links shown on the sign-in screen and in Settings. Empty = hidden.
     "TERMS_URL": "",
     "PRIVACY_URL": "",
@@ -89,6 +94,8 @@
         "PHOTO_PAGES_PER_MONTH": "20",
         "TURNSTILE_SITEKEY": "0x4AAAAAAFEatL_S3WafL5H8",
         "TURNSTILE_HOSTNAMES": "app.nowstocking.com",
+        "AI_ALLOWANCE_USD": "5",
+        "AI_MONTHLY_CAP_USD": "50",
         "TERMS_URL": "https://nowstocking.com/terms",
         "PRIVACY_URL": "https://nowstocking.com/privacy",
         "SIGNUP_MODE": "open"

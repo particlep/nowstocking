@@ -102,6 +102,13 @@ One PWA on my iPhone that does lookup, scanning, put-away, receiving, and pick l
   leaves, and their email is replaced with "deleted user" in each warehouse's rows and history. Deletion is refused if
   the user is the only owner of an account other people use. Sessions, sign-in codes, invites to them, and the user row
   are removed. Endpoint: `POST /api/me/delete`.
+- **AI budget:** every Claude call records its model, tokens and cost (`ai_usage`). An account's lifetime cost is
+  checked against its allowance (`AI_ALLOWANCE_USD`, or a per-account override) before a job starts and again before
+  each page. The monthly total across all accounts is checked against `AI_MONTHLY_CAP_USD`. When a check fails, photo
+  reading is refused with a clear message, and everything else keeps working. People listed in `OPERATOR_EMAILS` (a
+  secret) see More → Admin: this month's spend against the cap, every account's spend, and controls to set an allowance
+  or turn AI off. They get one email when an account's allowance runs out and one at 80% and 100% of the cap. Hosted
+  defaults: $5 per account, $50 per month.
 - **Legal:** nowstocking.com/privacy and /terms (site/public). The hosted sign-in screen and Settings link to them
   through `TERMS_URL` and `PRIVACY_URL`. privacy@nowstocking.com forwards through Cloudflare Email Routing.
 - **Later:** billing.

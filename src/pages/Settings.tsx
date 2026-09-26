@@ -106,21 +106,42 @@ export function SettingsPage() {
 
 function UsageCard() {
   const account = current.value?.account;
-  const [usage, setUsage] = useState<{ month: string; photo_pages: number; limit: number } | null>(null);
+  interface Usage {
+    month: string; photo_pages: number; limit: number;
+    ai: { spent_usd: number; allowance_usd: number | null; allowed: boolean; suspended: boolean; paused_for_everyone: boolean };
+  }
+  const [usage, setUsage] = useState<Usage | null>(null);
   useEffect(() => {
-    if (account) void api<typeof usage>(`/api/accounts/${account.id}/usage`).then(setUsage).catch(() => {});
+    if (account) void api<Usage>(`/api/accounts/${account.id}/usage`).then(setUsage).catch(() => {});
   }, [account?.id]);
   if (!usage) return null;
+  const ai = usage.ai;
+  const pct = ai.allowance_usd ? Math.min(100, (ai.spent_usd / ai.allowance_usd) * 100) : 0;
   return (
     <>
-      <div class="section-title">Photo reading this month</div>
+      <div class="section-title">Photo reading</div>
       <div class="card stack">
         <div class="row">
-          <span class="grow">{usage.photo_pages} page{usage.photo_pages === 1 ? '' : 's'} read</span>
-          <strong>{usage.limit ? `of ${usage.limit}` : 'No limit'}</strong>
+          <span class="grow">{usage.photo_pages} page{usage.photo_pages === 1 ? '' : 's'} read this month</span>
+          <strong>{usage.limit ? `of ${usage.limit}` : ''}</strong>
         </div>
-        {usage.limit > 0 && (
-          <div class="progress"><div style={{ width: `${Math.min(100, (usage.photo_pages / usage.limit) * 100)}%`, background: usage.photo_pages >= usage.limit ? 'var(--bad)' : 'var(--ok)' }} /></div>
+        {ai.allowance_usd != null && (
+          <>
+            <div class="row">
+              <span class="grow">Free AI allowance used</span>
+              <strong>${ai.spent_usd.toFixed(2)} of ${ai.allowance_usd.toFixed(2)}</strong>
+            </div>
+            <div class="progress"><div style={{ width: `${pct}%`, background: pct >= 100 ? 'var(--bad)' : pct >= 80 ? 'var(--warn)' : 'var(--ok)' }} /></div>
+          </>
+        )}
+        {ai.allowance_usd == null && ai.spent_usd > 0 && <div class="meta">AI cost so far: ${ai.spent_usd.toFixed(2)}</div>}
+        {!ai.allowed && (
+          <p class="banner warn small" style={{ margin: 0 }}>
+            {ai.suspended ? 'Photo reading is turned off for this workshop.'
+              : ai.paused_for_everyone ? 'Photo reading is paused for everyone until next month.'
+              : "This workshop's free photo-reading allowance is used up."}{' '}
+            Everything else still works.
+          </p>
         )}
       </div>
     </>

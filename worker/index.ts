@@ -14,6 +14,8 @@ import { cancelInvite, invite, listMembers, MemberError, removeMember, renameAcc
 import { AuthError, EMAIL_RE, endSession, SESSION_COOKIE, SESSION_MAX_AGE, startLogin, verifyLogin } from './session';
 import { turnstileSitekey, verifyTurnstile } from './turnstile';
 import { getUsage, recordPhotoPages } from './usage';
+import { aiStatus, assertAiAllowed, operatorEmails } from './aiBudget';
+import { admin } from './admin';
 
 const app = new Hono<AppEnv>().basePath('/api');
 
@@ -93,7 +95,7 @@ app.post('/auth/logout', async (c) => {
 app.get('/me', async (c) => {
   const mode = (c.env.SIGNUP_MODE as string) === 'open' ? 'open' : 'single';
   const userId = await provision(c.env.DB, c.get('email'), mode);
-  return c.json(await describe(c.env.DB, userId, c.get('email')));
+  return c.json({ ...(await describe(c.env.DB, userId, c.get('email'))), operator: operatorEmails(c.env).includes(c.get('email')) });
 });
 
 /** Delete my account. The body must say { "confirm": "DELETE" }. */
@@ -212,7 +214,7 @@ app.delete('/accounts/:accountId/members/:userId', (c) =>
 );
 
 app.get('/accounts/:accountId/usage', (c) =>
-  memberRoute(c, async (_me, accountId) => c.json(await getUsage(c.env, accountId))),
+  memberRoute(c, async (_me, accountId) => c.json({ ...(await getUsage(c.env, accountId)), ai: await aiStatus(c.env, accountId) })),
 );
 
 // ---- One warehouse: /api/w/:wid/... ----
@@ -324,6 +326,7 @@ w.post('/import/jobs/:id/start', (c) =>
   withJob(c, async (jobId) => {
     const body = await c.req.json<{ pages?: number[] }>().catch(() => ({}) as { pages?: number[] });
     const { id: wid, stub, accountId } = c.get('warehouse');
+    await assertAiAllowed(c.env, accountId);
     const pages = await stub.startReading(jobId, Array.isArray(body.pages) ? body.pages.map(Number) : undefined);
     try {
       await recordPhotoPages(c.env, accountId, pages.length);
@@ -332,7 +335,7 @@ w.post('/import/jobs/:id/start', (c) =>
       throw e;
     }
     try {
-      await c.env.IMPORT_WORKFLOW.create({ id: `${jobId}-${Date.now()}`, params: { warehouseId: wid, jobId, pages } });
+      await c.env.IMPORT_WORKFLOW.create({ id: `${jobId}-${Date.now()}`, params: { accountId, warehouseId: wid, jobId, pages } });
     } catch (e) {
       await stub.cancelReading(jobId, pages);
       throw e;
@@ -363,6 +366,7 @@ w.get('/import/image/*', (c) => {
 });
 
 app.route('/w/:wid', w);
+app.route('/admin', admin);
 
 // ---- Account-wide ----
 

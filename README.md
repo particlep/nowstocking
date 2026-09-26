@@ -107,6 +107,13 @@ All of these are `vars` in `wrangler.jsonc`:
 | `TURNSTILE_SITEKEY` | `""`: off | A [Turnstile](https://developers.cloudflare.com/turnstile/) sitekey. The bot check runs on "Email me a code" |
 | `TURNSTILE_HOSTNAMES` | `""` | The site's hostnames, comma-separated. A token from any other hostname is refused |
 | `TERMS_URL`, `PRIVACY_URL` | `""`: hidden | Links shown on the sign-in screen and in Settings |
+| `AI_ALLOWANCE_USD` | `"0"`: unlimited | Each account's lifetime free Claude allowance, in USD. Photo reading stops when it's used up |
+| `AI_MONTHLY_CAP_USD` | `"0"`: unlimited | Claude spend across all accounts per month. Photo reading pauses for everyone when it's reached |
+
+Every Claude call records its tokens and cost, priced in `worker/aiBudget.ts`. Set the `OPERATOR_EMAILS` secret (a
+comma-separated list) to give those people an Admin screen in More. It shows spend per account and has controls to
+raise an allowance or turn AI off. Those people also get an email when an account uses up its allowance, and when total
+spend reaches 80% and 100% of the cap. Set a spend limit in the Anthropic console too, as a hard backstop.
 
 With Turnstile on, also set the widget's secret: `npx wrangler secret put TURNSTILE_SECRET`. The Worker checks every
 token with Cloudflare, requires the `signin` action and a listed hostname, and refuses the request if Cloudflare can't be

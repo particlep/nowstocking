@@ -1,6 +1,7 @@
 import { Page } from '../components/chrome';
 import { ChevronIcon, LogoMark } from '../components/icons';
 import { me } from '../data/store';
+import { identity } from '../data/workspace';
 import { CurrentWarehouseCard } from './Warehouses';
 
 const LINKS = [
@@ -18,7 +19,7 @@ export function MorePage() {
     <Page title="More">
       <CurrentWarehouseCard />
       <div class="list">
-        {LINKS.map((l) => (
+        {(identity.value?.operator ? [{ href: '/admin', title: 'Admin', desc: 'AI usage across all accounts' }, ...LINKS] : LINKS).map((l) => (
           <a class="list-item row" href={l.href}>
             <span class="grow">
               <span style={{ display: 'block', fontWeight: 600 }}>{l.title}</span>

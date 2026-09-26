@@ -2,6 +2,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { ParsedInstructions, ParsedPage, type ImportKind } from '../shared/importTypes';
+import type { TokenUsage } from './aiBudget';
 
 const SYSTEM = `You transcribe Van's Aircraft kit packing lists from photos into structured rows.
 
@@ -50,7 +51,10 @@ function toBase64(bytes: Uint8Array): string {
 }
 
 /** Read one page photo from R2 and transcribe it. Throws on API errors so the Workflow step retries. */
-export async function readPage(env: Env, imageKey: string, page: number, kind: ImportKind = 'packing_list'): Promise<ParsedPage | ParsedInstructions> {
+export async function readPage(
+  env: Env, imageKey: string, page: number, kind: ImportKind = 'packing_list',
+  onUsage?: (model: string, usage: TokenUsage) => Promise<unknown>,
+): Promise<ParsedPage | ParsedInstructions> {
   const apiKey = (env as { ANTHROPIC_API_KEY?: string }).ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set on the Worker');
   const obj = await env.IMPORTS.get(imageKey);
@@ -83,6 +87,9 @@ export async function readPage(env: Env, imageKey: string, page: number, kind: I
   const message = kind === 'instructions'
     ? await client.beta.messages.stream({ ...request, system: INSTRUCTIONS_SYSTEM, output_config: { effort: 'high', format: betaZodOutputFormat(ParsedInstructions) } }).finalMessage()
     : await client.beta.messages.stream({ ...request, system: SYSTEM, output_config: { effort: 'high', format: betaZodOutputFormat(ParsedPage) } }).finalMessage();
+
+  // Billed whether or not the answer is usable, so record it first.
+  await onUsage?.(message.model, message.usage);
 
   if (message.stop_reason === 'refusal') throw new Error('The model declined to read this page.');
   if (message.stop_reason === 'max_tokens') throw new Error('The page was too long to transcribe in one pass.');
