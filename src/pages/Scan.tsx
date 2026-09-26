@@ -12,11 +12,12 @@ export function ScanPage() {
         onResult={(text) => {
           const code = parseLocationCode(text);
           if (code) route(`/loc/${encodeURIComponent(code)}`);
-          else setMsg(`Not a location label: ${text}`);
+          else setMsg(`That isn't a location label: ${text}`);
         }}
       />
-      <p class="muted small center">Point at a location label.</p>
-      {msg && <p class="banner warn small">{msg}</p>}
+      <p class="muted center">Point at a bin or shelf label.</p>
+      {msg && <p class="banner warn">{msg}</p>}
+      <a class="btn block" href="/locations">Type a location instead</a>
     </Page>
   );
 }

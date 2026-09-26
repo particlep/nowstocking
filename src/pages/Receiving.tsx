@@ -4,6 +4,7 @@ import { fmtQty } from '../../shared/inventory';
 import { PROBLEM_STATUSES, type Item, type ItemStatus } from '../../shared/schema';
 import { StatusBadge } from '../components/ItemRow';
 import { Page } from '../components/chrome';
+import { CheckIcon, MoreIcon } from '../components/icons';
 import { markKitReceived, setStatus } from '../data/actions';
 import { catalog, loaded } from '../data/store';
 
@@ -105,14 +106,14 @@ export function ReceivingKitPage() {
                 </div>
               </div>
               {item.status !== 'received' && (
-                <button class="btn small primary" onClick={() => mark(item, 'received')} aria-label="Mark received">✓</button>
+                <button class="icon-btn lg accent" onClick={() => mark(item, 'received')} aria-label={`Mark ${item.stock_code} received`}><CheckIcon /></button>
               )}
-              <button class="btn small" onClick={() => setOpen(open === item.id ? null : item.id)} aria-label="More statuses">⋯</button>
+              <button class="icon-btn lg" onClick={() => setOpen(open === item.id ? null : item.id)} aria-label={`More statuses for ${item.stock_code}`} aria-expanded={open === item.id}><MoreIcon /></button>
             </div>
             {open === item.id && (
-              <div class="seg" style={{ marginTop: '8px' }}>
+              <div class="chips" style={{ marginTop: '10px' }}>
                 {(['expected', 'received', ...PROBLEM_STATUSES] as ItemStatus[]).map((s) => (
-                  <button class={item.status === s ? 'on' : ''} onClick={() => mark(item, s)}>{s}</button>
+                  <button class={`chip${item.status === s ? ' on' : ''}`} aria-pressed={item.status === s} onClick={() => mark(item, s)}>{s[0].toUpperCase() + s.slice(1)}</button>
                 ))}
               </div>
             )}

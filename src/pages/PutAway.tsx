@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'preact/hooks';
 import { useLocation } from 'preact-iso';
+import { effectiveLocation, formatLocations } from '../../shared/inventory';
 import type { Op } from '../../shared/schema';
-import { ItemRow } from '../components/ItemRow';
 import { LocationPicker } from '../components/LocationPicker';
 import { parseLocationCode, Scanner } from '../components/Scanner';
 import { Page } from '../components/chrome';
+import { CheckIcon, PlusIcon, ScanIcon, SearchIcon, UndoIcon } from '../components/icons';
 import { createLocation, guessLocationType, putAway, undo } from '../data/actions';
 import { catalog } from '../data/store';
 import { search } from '../lib/search';
 
-interface Placed { itemId: number; undo: Op[] }
+interface Placed { itemId: number; undo: Op[]; at: number }
 
 export function PutAwayPage() {
   const { query } = useLocation();
@@ -31,7 +32,7 @@ export function PutAwayPage() {
   if (!loc) {
     return (
       <Page title="Put away">
-        <p class="muted">Scan the location first. Everything you add goes there until you pick a new one.</p>
+        <p class="muted" style={{ margin: 0 }}>Scan where you're putting things. Everything you add goes there until you pick a new spot.</p>
         <div class="seg">
           <button class={picking === 'scan' ? 'on' : ''} onClick={() => setPicking('scan')}>Scan label</button>
           <button class={picking === 'type' ? 'on' : ''} onClick={() => setPicking('type')}>Type code</button>
@@ -46,58 +47,83 @@ export function PutAwayPage() {
   }
 
   const last = placed[placed.length - 1];
+  const lastItem = last ? cat.items.get(last.itemId) : undefined;
   return (
     <Page title="Put away">
-      <div class="card row">
+      <section class="card accent-edge row" style={{ gap: '14px', padding: '14px' }}>
+        <span class="tag xl">{loc.code}</span>
         <div class="grow">
-          <div class="small muted">Putting away into</div>
-          <div class="loc" style={{ fontSize: '32px' }}>{loc.code}</div>
+          <div class="hero-kicker" style={{ color: 'var(--accent)' }}>Putting into</div>
+          <div class="meta" style={{ fontSize: '14px' }}>{loc.description ?? loc.type}</div>
         </div>
-        <button class="btn" onClick={() => setLocId(null)}>Change</button>
-      </div>
+        <button class="icon-btn lg" aria-label="Choose a different location" onClick={() => setLocId(null)}><ScanIcon /></button>
+      </section>
 
-      <input
-        class="search-input" type="search" placeholder="Part or bag number" autoCapitalize="characters" autoCorrect="off"
-        spellcheck={false} value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)}
-      />
+      <label class="search">
+        <SearchIcon />
+        <input
+          type="search" aria-label="Part or bag number" placeholder="Part or bag number" autoCapitalize="characters"
+          autoCorrect="off" spellcheck={false} value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)}
+        />
+      </label>
+
       {hits.length > 0 && (
-        <div class="list">
-          {hits.map((h) => (
-            <ItemRow
-              item={h.item}
-              indent={h.rank === 5}
-              onClick={async () => {
-                const u = await putAway(catalog.value, h.item, loc.id);
-                setPlaced([...placed, { itemId: h.item.id, undo: u }]);
-                setQ('');
-              }}
-            />
-          ))}
+        <div class="cards">
+          {hits.map((h) => {
+            const where = formatLocations(cat, effectiveLocation(cat, h.item).placements);
+            return (
+              <button
+                class={`item-card${h.rank === 5 ? ' indent' : ''}`}
+                onClick={async () => {
+                  const u = await putAway(catalog.value, h.item, loc.id);
+                  setPlaced([...placed, { itemId: h.item.id, undo: u, at: Date.now() }]);
+                  setQ('');
+                }}
+              >
+                <span class="grow" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span class="code" style={{ fontSize: '17px' }}>{h.item.stock_code}</span>
+                  <span class="meta">
+                    {[h.item.item_type === 'bag' ? h.item.description : null, cat.kits.get(h.item.kit_id)?.code, where ? `in ${where}` : 'no location yet'].filter(Boolean).join(' · ')}
+                  </span>
+                </span>
+                <span class="icon-btn lg accent" aria-hidden="true"><PlusIcon /></span>
+              </button>
+            );
+          })}
         </div>
-      )}
-
-      {last && (
-        <button
-          class="btn block"
-          onClick={async () => {
-            await undo(`Undo put away`, last.undo);
-            setPlaced(placed.slice(0, -1));
-          }}
-        >
-          Undo {cat.items.get(last.itemId)?.stock_code ?? 'last'}
-        </button>
       )}
 
       {placed.length > 0 && (
         <>
-          <div class="section-title">Put in {loc.code} this session ({placed.length})</div>
+          <div class="section-title">In {loc.code} this session · {placed.length}</div>
           <div class="list">
             {[...placed].reverse().map((p) => {
               const it = cat.items.get(p.itemId);
-              return it ? <ItemRow item={it} /> : null;
+              if (!it) return null;
+              return (
+                <a class="list-item row" href={`/item/${it.id}`}>
+                  <CheckIcon style={{ width: '18px', height: '18px', color: 'var(--ok)' }} />
+                  <span class="code grow" style={{ fontSize: '15px' }}>{it.stock_code}</span>
+                  <span class="meta">{new Date(p.at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>
+                </a>
+              );
             })}
           </div>
         </>
+      )}
+
+      {last && lastItem && <div style={{ height: '64px' }} aria-hidden="true" />}
+      {last && lastItem && (
+        <div class="toast" role="status">
+          <span class="grow">{lastItem.stock_code} put in <strong>{loc.code}</strong></span>
+          <button
+            class="btn"
+            onClick={async () => {
+              await undo('Undo put away', last.undo);
+              setPlaced(placed.slice(0, -1));
+            }}
+          ><UndoIcon />Undo</button>
+        </div>
       )}
     </Page>
   );

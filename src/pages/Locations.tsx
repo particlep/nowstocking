@@ -46,7 +46,7 @@ export function LocationsPage() {
             const n = itemsAtLocation(cat, l.id).filter((e) => e.item.item_type === 'part').length;
             return (
               <a class="list-item row" href={`/loc/${encodeURIComponent(l.code)}`}>
-                <span class="loc" style={{ fontSize: '20px', minWidth: '90px' }}>{l.code}</span>
+                <span style={{ minWidth: '84px' }}><span class="tag sm">{l.code}</span></span>
                 <span class="grow small muted">{l.type}{l.description ? ` · ${l.description}` : ''}</span>
                 <span class="small muted">{n} part{n === 1 ? '' : 's'}</span>
               </a>

@@ -3,6 +3,7 @@ import { useLocation, useRoute } from 'preact-iso';
 import type { ImportJob } from '../../shared/importTypes';
 import type { Unit } from '../../shared/schema';
 import { Page } from '../components/chrome';
+import { CheckIcon, FlagIcon, PhotoIcon, PlusIcon } from '../components/icons';
 import {
   draft, insertRowAfter, loadDraft, needsReview, removeRow, unitFor, updateRow, type DraftRow,
 } from '../data/importDraft';
@@ -29,10 +30,10 @@ export function ImportRowPage() {
   }, [jobId]);
 
   const d = draft.value?.jobId === jobId ? draft.value : null;
-  if (!d) return <Page title="Review line" back><p class="muted center">Loading…</p></Page>;
+  if (!d) return <Page back="All lines"><p class="muted center">Loading…</p></Page>;
   const idx = d.rows.findIndex((r) => r.key === key);
   const r = d.rows[idx];
-  if (!r) return <Page title="Review line" back><p class="muted center">This line was removed.</p></Page>;
+  if (!r) return <Page back="All lines"><p class="muted center">This line was removed.</p></Page>;
 
   const go = (k: string | undefined) => (k ? route(`/import/${jobId}/row/${encodeURIComponent(k)}`, true) : route(`/import/${jobId}`, true));
   const nextFlagged = [...d.rows.slice(idx + 1), ...d.rows.slice(0, idx)].find(needsReview);
@@ -40,35 +41,70 @@ export function ImportRowPage() {
   const set = (patch: Partial<DraftRow>) => void updateRow(r.key, patch);
   const flaggedLeft = d.rows.filter(needsReview).length;
 
+  // Rough crop: aim the photo at this line's position on its page.
+  const pageRows = d.rows.filter((x) => x.page === r.page);
+  const posInPage = pageRows.findIndex((x) => x.key === r.key);
+  const focusY = pageRows.length > 1 ? 12 + (posInPage / (pageRows.length - 1)) * 76 : 50;
+  const lastLine = flaggedLeft <= (needsReview(r) ? 1 : 0);
+
   return (
-    <Page title={`Line ${idx + 1} of ${d.rows.length}`} back>
+    <Page
+      back="All lines"
+      actions={<span class="meta" style={{ fontSize: '14px' }}>Line {idx + 1} of {d.rows.length}</span>}
+      bottom={
+        <>
+          <button
+            class="btn primary lg block"
+            onClick={async () => {
+              await updateRow(r.key, { reviewed: true });
+              go(nextFlagged?.key !== r.key ? nextFlagged?.key : undefined);
+            }}
+          ><CheckIcon />{lastLine ? 'Looks right · back to list' : 'Looks right · next flagged'}</button>
+          <div class="row">
+            <button class="btn grow" disabled={idx === 0} onClick={() => go(d.rows[idx - 1]?.key)}>‹ Previous</button>
+            <button class="btn grow" disabled={idx === d.rows.length - 1} onClick={() => go(d.rows[idx + 1]?.key)}>Next ›</button>
+          </div>
+        </>
+      }
+    >
       {r.uncertain && (
-        <div class={`banner ${r.reviewed ? '' : 'warn'} small`}>
-          {r.reviewed ? '✓ Reviewed. ' : '⚠ Flagged as hard to read. '}
-          {r.note}
+        <div class={`banner ${r.reviewed ? 'ok' : 'warn'}`}>
+          {r.reviewed ? <CheckIcon /> : <FlagIcon />}
+          <span style={{ fontWeight: 500 }}>{r.reviewed ? 'Reviewed' : r.note ?? 'Flagged as hard to read'}{r.reviewed && r.note ? ` · ${r.note}` : ''}</span>
         </div>
       )}
 
-      <div class="small muted">
-        Page {r.page}{container && <> · inside <strong>{container.stock_code}</strong></>}
-      </div>
+      {imageKeys[r.page] ? (
+        <a href={`/api/import/image/${imageKeys[r.page]}`} target="_blank" rel="noreferrer" aria-label={`Open page ${r.page} photo full size`} style={{ display: 'block', position: 'relative' }}>
+          <img
+            class="photo"
+            src={`/api/import/image/${imageKeys[r.page]}`}
+            alt={`Packing list page ${r.page}, around this line`}
+            style={{ height: '170px', objectFit: 'cover', objectPosition: `center ${focusY}%` }}
+          />
+          <span class="badge" style={{ position: 'absolute', right: '10px', bottom: '10px', background: 'rgb(27 42 65 / 0.8)', color: '#fff' }}>Page {r.page} · tap to zoom</span>
+        </a>
+      ) : (
+        <div class="photo row" style={{ height: '120px', justifyContent: 'center', color: 'var(--muted)' }}><PhotoIcon style={{ width: '28px', height: '28px' }} /></div>
+      )}
 
-      <div class="seg">
+      <div class="seg" role="group" aria-label="Line type">
         {KINDS.map((k) => (
-          <button class={r.kind === k.value ? 'on' : ''} onClick={() => set({ kind: k.value })}>{k.label}</button>
+          <button class={r.kind === k.value ? 'on' : ''} aria-pressed={r.kind === k.value} onClick={() => set({ kind: k.value })}>{k.label}</button>
         ))}
       </div>
       {r.kind === 'part' && (
-        <label class="row">
-          <input type="checkbox" style={{ width: '22px', height: '22px' }} checked={r.indented} onChange={(e) => set({ indented: (e.target as HTMLInputElement).checked })} />
-          <span>In the bag above it</span>
+        <label class="row" style={{ fontSize: '15px' }}>
+          <input type="checkbox" style={{ width: '24px', height: '24px', accentColor: 'var(--navy)' }} checked={r.indented} onChange={(e) => set({ indented: (e.target as HTMLInputElement).checked })} />
+          <span>{container?.kind === 'bag' || r.indented ? <>Inside <span class="mono" style={{ fontWeight: 600 }}>{container?.stock_code ?? 'the bag above'}</span></> : 'Inside the bag above it'}</span>
         </label>
       )}
+      {r.kind !== 'part' && container && <div class="meta">Under {container.stock_code}</div>}
 
       <label class="field">
         <span>Stock code</span>
         <input
-          class="input" style={{ fontSize: '24px', fontWeight: 700 }} value={r.stock_code}
+          class="input code-input" value={r.stock_code}
           autoCapitalize="characters" autoCorrect="off" spellcheck={false}
           onInput={(e) => set({ stock_code: (e.target as HTMLInputElement).value })}
         />
@@ -80,49 +116,26 @@ export function ImportRowPage() {
           onInput={(e) => { const v = (e.target as HTMLInputElement).value; set({ description: v, unit: unitFor(v) }); }}
         />
       </label>
-      <div class="row">
-        <label class="field grow">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '10px' }}>
+        <label class="field">
           <span>Qty</span>
           <input class="input" inputMode="decimal" value={String(r.qty)} onInput={(e) => set({ qty: Number((e.target as HTMLInputElement).value) })} />
         </label>
-        <label class="field grow">
+        <label class="field">
           <span>Unit</span>
           <select class="input" value={r.unit} onChange={(e) => set({ unit: (e.target as HTMLSelectElement).value as Unit })}>
             <option value="ea">each</option>
-            <option value="lb">lb (by weight)</option>
+            <option value="lb">lb</option>
           </select>
         </label>
-        <label class="field grow">
+        <label class="field">
           <span>Van's bin</span>
           <input class="input" value={r.vans_bin ?? ''} onInput={(e) => set({ vans_bin: (e.target as HTMLInputElement).value || null })} />
         </label>
       </div>
 
-      <button
-        class="btn primary block"
-        onClick={async () => {
-          await updateRow(r.key, { reviewed: true });
-          go(nextFlagged?.key !== r.key ? nextFlagged?.key : undefined);
-        }}
-      >
-        {flaggedLeft > (needsReview(r) ? 1 : 0) ? 'Looks right · next flagged' : 'Looks right · back to list'}
-      </button>
       <div class="row">
-        <button class="btn grow" disabled={idx === 0} onClick={() => go(d.rows[idx - 1]?.key)}>‹ Previous line</button>
-        <button class="btn grow" disabled={idx === d.rows.length - 1} onClick={() => go(d.rows[idx + 1]?.key)}>Next line ›</button>
-      </div>
-
-      {imageKeys[r.page] && (
-        <>
-          <div class="section-title">Page {r.page} photo · tap to open full size and zoom</div>
-          <a href={`/api/import/image/${imageKeys[r.page]}`} target="_blank" rel="noreferrer">
-            <img src={`/api/import/image/${imageKeys[r.page]}`} alt={`Packing list page ${r.page}`} style={{ width: '100%', borderRadius: '12px' }} />
-          </a>
-        </>
-      )}
-
-      <div class="row">
-        <button class="btn grow" onClick={async () => { const k = await insertRowAfter(r.key); if (k) go(k); }}>+ Add line after</button>
+        <button class="btn grow" onClick={async () => { const k = await insertRowAfter(r.key); if (k) go(k); }}><PlusIcon />Add line after</button>
         <button
           class="btn danger grow"
           onClick={async () => {
@@ -133,7 +146,6 @@ export function ImportRowPage() {
           }}
         >Remove line</button>
       </div>
-      <a class="btn block" href={`/import/${jobId}`}>Back to all lines</a>
     </Page>
   );
 }

@@ -1,4 +1,4 @@
-# RV-14A Parts Inventory
+# NowStocking · RV-14A Parts Inventory
 
 PWA + Cloudflare Worker at https://pc-rv14a.nowstocking.com (behind Cloudflare Access). Spec: `rv14a-parts-inventory-spec.md`.
 

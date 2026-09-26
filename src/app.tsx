@@ -1,5 +1,5 @@
-import { LocationProvider, Route, Router } from 'preact-iso';
-import { TabBar } from './components/chrome';
+import { LocationProvider, Route, Router, useLocation } from 'preact-iso';
+import { hidesTabs, TabBar } from './components/chrome';
 import { PullToRefresh } from './components/PullToRefresh';
 import { syncState } from './data/store';
 import { signIn } from './data/sync';
@@ -22,17 +22,22 @@ import { SettingsPage } from './pages/Settings';
 function SignInBanner() {
   if (syncState.value !== 'signin') return null;
   return (
-    <div class="banner bad row" style={{ margin: '8px 16px 0', borderRadius: '12px' }}>
-      <span class="grow small">Sign-in expired. Edits are saved on this phone.</span>
+    <div class="banner bad row" style={{ margin: 'calc(env(safe-area-inset-top) + 8px) 16px 0', alignItems: 'center' }}>
+      <span class="grow small">Sign-in expired. Your edits are saved on this phone.</span>
       <button class="btn small primary" onClick={signIn}>Sign in</button>
     </div>
   );
 }
 
+function Shell({ children }: { children: preact.ComponentChildren }) {
+  const { path } = useLocation();
+  return <div class={`app${hidesTabs(path) ? ' no-tabs' : ''}`}>{children}</div>;
+}
+
 export function App() {
   return (
     <LocationProvider>
-      <div class="app">
+      <Shell>
         <PullToRefresh />
         <SignInBanner />
         <Router>
@@ -56,7 +61,7 @@ export function App() {
           <Route default component={SearchPage} />
         </Router>
         <TabBar />
-      </div>
+      </Shell>
     </LocationProvider>
   );
 }

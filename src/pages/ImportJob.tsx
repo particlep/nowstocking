@@ -4,6 +4,7 @@ import type { ImportJob } from '../../shared/importTypes';
 import { fmtQty } from '../../shared/inventory';
 import type { ItemType, Op } from '../../shared/schema';
 import { Page } from '../components/chrome';
+import { CheckIcon, ChevronIcon, FlagIcon } from '../components/icons';
 import { onRefresh } from '../components/PullToRefresh';
 import { itemFields } from '../data/actions';
 import { clearDraft, draft, loadDraft, mergeJob, needsReview, type DraftRow } from '../data/importDraft';
@@ -48,7 +49,7 @@ export function ImportJobPage() {
   useEffect(() => onRefresh(() => setPollKey((k) => k + 1)), []);
 
   const d = draft.value?.jobId === id ? draft.value : null;
-  if (!job) return <Page title="Import" back>{error ? <p class="banner bad">{error}</p> : <p class="muted center">Loading…</p>}</Page>;
+  if (!job) return <Page back="Imports">{error ? <p class="banner bad">{error}</p> : <p class="muted center">Loading…</p>}</Page>;
 
   const reading = job.pages.filter((p) => p.status === 'reading').length;
   const failed = job.pages.filter((p) => p.status === 'failed');
@@ -64,47 +65,57 @@ export function ImportJobPage() {
     setPollKey((k) => k + 1); // resume polling
   };
 
+  const kitName = job.pages.find((p) => p.result?.kit_name)?.result?.kit_name;
+  const firstFlagged = flagged[0];
+
   return (
-    <Page title="Review import" back>
-      {job.status === 'committed' && <p class="banner small">This import was committed to inventory.</p>}
-      <div class="card stack">
-        {reading > 0 ? (
-          <>
-            <strong>Reading pages… {done} of {job.page_count} done</strong>
-            <span class="small muted">This runs on the server. You can lock your phone or leave this screen and come back.</span>
-          </>
-        ) : (
-          <strong>{done} of {job.page_count} pages read · {rows.length} lines</strong>
-        )}
-        <div class="row wrap">
+    <Page
+      back="Imports"
+      title={kitName ?? 'Packing list'}
+      bottom={firstFlagged && job.status !== 'committed' ? (
+        <>
+          <a class="btn primary lg block" href={`/import/${id}/row/${encodeURIComponent(firstFlagged.key)}`}>
+            Review {flagged.length} flagged line{flagged.length === 1 ? '' : 's'}
+          </a>
+          {reading > 0 && <div class="meta center">Commit unlocks when all pages are read</div>}
+        </>
+      ) : undefined}
+    >
+      {job.status === 'committed' && <p class="banner ok"><CheckIcon />This import was committed to inventory.</p>}
+      <section class="card stack">
+        <div class="row">
+          <strong class="grow">{reading > 0 ? `Reading pages · ${done} of ${job.page_count} done` : `${done} of ${job.page_count} pages read · ${rows.length} lines`}</strong>
+        </div>
+        <div class="page-bars" aria-hidden="true">
           {job.pages.map((p) => (
             <a
-              class={`badge ${p.status === 'failed' ? 'missing' : p.status === 'done' ? 'received' : ''}`}
-              style={{ fontSize: '14px', padding: '6px 10px', textDecoration: 'none' }}
+              class={p.status === 'done' ? 'done' : p.status === 'failed' ? 'failed' : p.status === 'reading' ? 'reading' : ''}
               href={p.image_key ? `/api/import/image/${p.image_key}` : undefined}
               target="_blank" rel="noreferrer"
-            >
-              Pg {p.page}: {p.status === 'reading' ? 'reading…' : p.status}
-            </a>
+              title={`Page ${p.page}: ${p.status}`}
+            />
           ))}
         </div>
+        {reading > 0 && <div class="meta" style={{ fontSize: '14px' }}>You can lock your phone. Reading continues on the server.</div>}
         {failed.map((p) => <div class="small" style={{ color: 'var(--bad)' }}>Page {p.page}: {p.error}</div>)}
         {failed.length > 0 && <button class="btn small" onClick={() => retry(failed.map((p) => p.page))}>Retry failed page{failed.length === 1 ? '' : 's'}</button>}
-        {error && <div class="small muted">Couldn't refresh: {error}</div>}
-      </div>
+        {error && <div class="meta">Couldn't refresh: {error}</div>}
+      </section>
 
       {rows.length > 0 && (
         <>
-          <div class="seg">
-            <button class={filter === 'review' ? 'on' : ''} onClick={() => setFilter('review')}>Needs review ({flagged.length})</button>
-            <button class={filter === 'all' ? 'on' : ''} onClick={() => setFilter('all')}>All lines ({rows.length})</button>
+          <div class="seg" role="tablist" aria-label="Filter lines">
+            <button role="tab" aria-selected={filter === 'review'} class={filter === 'review' ? 'on' : ''} onClick={() => setFilter('review')}>Needs review · {flagged.length}</button>
+            <button role="tab" aria-selected={filter === 'all'} class={filter === 'all' ? 'on' : ''} onClick={() => setFilter('all')}>All lines · {rows.length}</button>
           </div>
           {filter === 'review' && flagged.length === 0 && (
             <p class="muted center small">Nothing flagged{reading ? ' yet' : ''}. Spot-check a few lines under All lines against the photos.</p>
           )}
-          <div class="list">
-            {shown.map((r) => <DraftRowItem r={r} jobId={id} />)}
-          </div>
+          {shown.length > 0 && (
+            <div class="list">
+              {shown.map((r) => <DraftRowItem r={r} jobId={id} />)}
+            </div>
+          )}
         </>
       )}
 
@@ -126,24 +137,23 @@ export function ImportJobPage() {
 }
 
 function DraftRowItem({ r, jobId }: { r: DraftRow; jobId: string }) {
-  const indent = r.kind === 'part' && r.indented ? 28 : r.kind === 'part' || r.kind === 'bag' ? 14 : 14;
+  const indent = r.kind === 'part' && r.indented ? 32 : 16;
+  const flagged = needsReview(r);
   return (
-    <a class="list-item" href={`/import/${jobId}/row/${encodeURIComponent(r.key)}`} style={{ paddingLeft: `${indent}px` }}>
-      <div class="row">
-        <div class="grow">
-          <div style={{ fontWeight: r.kind === 'part' ? 600 : 800, fontSize: r.kind === 'subkit' ? '18px' : '17px' }}>
-            {needsReview(r) && <span style={{ color: 'var(--warn)' }}>⚠ </span>}
-            {r.reviewed && <span style={{ color: 'var(--ok)' }}>✓ </span>}
-            {r.stock_code || <span class="muted">(no stock code)</span>}
-          </div>
-          <div class="small muted">{r.description}</div>
-          {needsReview(r) && r.note && <div class="small" style={{ color: 'var(--warn)' }}>{r.note}</div>}
-        </div>
-        <div class="small muted" style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-          {r.kind === 'part' ? `${fmtQty(r.qty)} ${r.unit}` : r.kind === 'subkit' ? 'sub-kit' : 'bag'}
-          <div>pg {r.page}</div>
-        </div>
-      </div>
+    <a class="list-item row" href={`/import/${jobId}/row/${encodeURIComponent(r.key)}`} style={{ paddingLeft: `${indent}px`, gap: '12px' }}>
+      {flagged ? <FlagIcon style={{ width: '20px', height: '20px', color: 'var(--warn)', flexShrink: 0 }} />
+        : r.reviewed ? <CheckIcon style={{ width: '20px', height: '20px', color: 'var(--ok)', flexShrink: 0 }} /> : null}
+      <span class="grow" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        <span class="code" style={{ fontSize: r.kind === 'part' ? '17px' : '15px', fontWeight: r.kind === 'part' ? 600 : 700 }}>
+          {r.kind !== 'part' && <span class="badge" style={{ marginRight: '6px' }}>{r.kind === 'subkit' ? 'sub-kit' : 'bag'}</span>}
+          {r.stock_code || <span class="muted">(no stock code)</span>}
+        </span>
+        {flagged && r.note
+          ? <span class="small" style={{ color: 'var(--warn)', fontWeight: 500 }}>{r.note}</span>
+          : <span class="meta">{r.description}{r.kind === 'part' ? ` · ${fmtQty(r.qty)} ${r.unit}` : ''}</span>}
+      </span>
+      <span class="meta">pg {r.page}</span>
+      <ChevronIcon class="chev" />
     </a>
   );
 }

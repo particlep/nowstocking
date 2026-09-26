@@ -65,7 +65,7 @@ export function LabelsPage() {
             {locations.map((l) => (
               <label class="list-item row">
                 <input type="checkbox" checked={selected.has(l.id)} onChange={() => toggle(l.id)} />
-                <span class="loc" style={{ fontSize: '18px' }}>{l.code}</span>
+                <span class="tag sm">{l.code}</span>
                 <span class="muted small grow">{l.type}{l.description ? ` · ${l.description}` : ''}</span>
               </label>
             ))}

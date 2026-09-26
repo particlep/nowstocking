@@ -5,6 +5,7 @@ import { toSearchKey } from '../../shared/normalize';
 import { PROBLEM_STATUSES, type Item, type PickListLine } from '../../shared/schema';
 import { StatusBadge } from '../components/ItemRow';
 import { Page } from '../components/chrome';
+import { PlusIcon } from '../components/icons';
 import { consume } from '../data/actions';
 import { commit, deleteOp, insertOp, updateOp } from '../data/mutate';
 import { catalog, loaded, tables } from '../data/store';
@@ -82,6 +83,7 @@ export function PickListDetailPage() {
   const list = tables.value.pick_lists.get(Number(params.id));
   const [q, setQ] = useState('');
   const [qty, setQty] = useState('');
+  const [adding, setAdding] = useState(false);
   const hits = useMemo(() => search(cat, q, 8).filter((h) => h.item.item_type !== 'subkit'), [cat, q]);
 
   if (!loaded.value) return <Page title="Pick list" back>{null}</Page>;
@@ -105,35 +107,72 @@ export function PickListDetailPage() {
     setQty('');
   };
 
-  return (
-    <Page title={list.page ?? `Section ${list.section}`} back>
-      {list.title && <div class="desc">{list.title}</div>}
-      <div class="card stack">
-        <div class="row">
-          <input class="input grow" placeholder="Add part number" autoCapitalize="characters" autoCorrect="off" value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)} />
-          <input class="input" style={{ width: '80px' }} inputMode="decimal" placeholder="Qty" value={qty} onInput={(e) => setQty((e.target as HTMLInputElement).value)} />
-        </div>
-        {q.trim().length >= 2 && (
-          <div class="list">
-            {[...new Map(hits.map((h) => [h.item.search_key, h.item])).values()].map((it) => (
-              <button class="list-item" onClick={() => addLine(it.stock_code)}>
-                <strong>{it.stock_code}</strong> <span class="small muted">{it.description}</span>
-              </button>
-            ))}
-            {!cat.itemsBySearchKey.has(toSearchKey(q)) && (
-              <button class="list-item" onClick={() => addLine(q.trim().toUpperCase())}>+ Add “{q.trim().toUpperCase()}” anyway</button>
-            )}
-          </div>
-        )}
-      </div>
+  const attention = resolved.filter((r) => !r.line.pulled && r.problem);
+  const toPull = resolved.filter((r) => !r.line.pulled && !r.problem);
+  const pulled = resolved.filter((r) => r.line.pulled);
 
-      {resolved.length === 0 && <p class="muted center">Add the parts this plans page calls for.</p>}
-      <div class="list">
-        {resolved.map((r) => <PickLine r={r} listId={list.id} />)}
+  return (
+    <Page
+      back="Pick lists"
+      actions={<button class="btn small primary" onClick={() => setAdding(!adding)}>{adding ? 'Done' : <><PlusIcon />Add part</>}</button>}
+    >
+      <div class="row" style={{ alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
+        <h1 class="large-title" style={{ fontSize: '44px' }}>{list.page ?? `Section ${list.section}`}</h1>
+        {list.title && <span class="subtitle">{list.title}</span>}
       </div>
+      {resolved.length > 0 && (
+        <div class="row">
+          <div class="progress grow"><div style={{ width: `${(pulled.length / resolved.length) * 100}%` }} /></div>
+          <strong class="small">{pulled.length} of {resolved.length} pulled</strong>
+        </div>
+      )}
+
+      {(adding || resolved.length === 0) && (
+        <div class="card stack">
+          <div class="row">
+            <input class="input grow code-input" style={{ fontSize: '18px' }} placeholder="Part number" autoCapitalize="characters" autoCorrect="off" value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)} />
+            <input class="input" style={{ width: '84px' }} inputMode="decimal" placeholder="Qty" value={qty} onInput={(e) => setQty((e.target as HTMLInputElement).value)} />
+          </div>
+          {q.trim().length >= 2 && (
+            <div class="list">
+              {[...new Map(hits.map((h) => [h.item.search_key, h.item])).values()].map((it) => (
+                <button class="list-item row" onClick={() => addLine(it.stock_code)}>
+                  <span class="code grow" style={{ fontSize: '16px' }}>{it.stock_code}</span>
+                  <span class="meta">{it.description}</span>
+                  <PlusIcon style={{ width: '18px', height: '18px', color: 'var(--accent)' }} />
+                </button>
+              ))}
+              {!cat.itemsBySearchKey.has(toSearchKey(q)) && (
+                <button class="list-item" onClick={() => addLine(q.trim().toUpperCase())}>+ Add “{q.trim().toUpperCase()}” anyway</button>
+              )}
+            </div>
+          )}
+          {resolved.length === 0 && !q && <p class="meta" style={{ margin: 0 }}>Add the parts this plans page calls for.</p>}
+        </div>
+      )}
+
+      {attention.length > 0 && (
+        <>
+          <div class="section-title bad">Needs attention</div>
+          <div class="cards">{attention.map((r) => <PickLine r={r} listId={list.id} />)}</div>
+        </>
+      )}
+      {toPull.length > 0 && (
+        <>
+          <div class="section-title">Pull in this order</div>
+          <div class="cards">{toPull.map((r) => <PickLine r={r} listId={list.id} />)}</div>
+        </>
+      )}
+      {pulled.length > 0 && (
+        <>
+          <div class="section-title">Pulled</div>
+          <div class="cards">{pulled.map((r) => <PickLine r={r} listId={list.id} />)}</div>
+        </>
+      )}
 
       <button
         class="btn danger block"
+        style={{ marginTop: '24px' }}
         onClick={async () => {
           if (!confirm('Delete this pick list?')) return;
           await commit('Delete pick list', [...lines.map((l) => deleteOp('pick_list_lines', l.id)), deleteOp('pick_lists', list.id)]);
@@ -149,45 +188,49 @@ function PickLine({ r, listId }: { r: ResolvedLine; listId: number }) {
   const { line } = r;
   const pulled = !!line.pulled;
   const [consumedIds, setConsumedIds] = useState<number[]>([]);
+  const tone = pulled ? ' done' : r.problem === 'backordered' ? ' warn' : r.problem ? ' problem' : '';
+  const single = r.items.length === 1 ? r.items[0] : null;
   return (
-    <div class="list-item" style={{ opacity: pulled ? 0.6 : 1 }}>
-      <div class="row">
+    <div class={`item-card${tone}`} style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
+      <div class="row" style={{ gap: '12px' }}>
         <input
-          type="checkbox" style={{ width: '26px', height: '26px' }} checked={pulled}
+          type="checkbox" class="check" checked={pulled}
           onChange={() => commit(`${pulled ? 'Unpull' : 'Pulled'} ${line.stock_code}`, [updateOp('pick_list_lines', line.id, { pulled: pulled ? 0 : 1 })])}
-          aria-label="Pulled"
+          aria-label={`Pulled ${line.stock_code}`}
         />
         <div class="grow">
-          <div class="code" style={{ textDecoration: pulled ? 'line-through' : 'none' }}>
-            {line.stock_code}{line.qty_needed != null && <span class="muted"> × {fmtQty(line.qty_needed)}</span>}
+          <div class="code" style={{ textDecoration: pulled ? 'line-through' : 'none', color: pulled ? 'var(--muted)' : undefined }}>
+            {line.stock_code}{line.qty_needed != null && <span class="muted" style={{ fontWeight: 500 }}> ×{fmtQty(line.qty_needed)}</span>}
           </div>
-          {r.problem && <div class="small" style={{ color: 'var(--bad)', fontWeight: 600 }}>{r.problem}</div>}
+          {single && <div class="meta">{[cat.kits.get(single.kit_id)?.code, single.description].filter(Boolean).join(' · ')}</div>}
         </div>
-        <button class="btn small" onClick={() => commit(`Remove ${line.stock_code}`, [deleteOp('pick_list_lines', line.id)])} aria-label="Remove line">✕</button>
+        {r.problem === 'Not in inventory' || r.problem === 'No location'
+          ? <span class="tag-none">{r.problem}</span>
+          : r.problem ? <span class={`badge ${r.problem}`}>{r.problem}</span>
+          : single && <span class={`tag${pulled ? ' dim sm' : ''}`}>{formatLocations(cat, effectiveLocation(cat, single).placements)}</span>}
       </div>
-      {r.items.map((it) => {
-        const loc = formatLocations(cat, effectiveLocation(cat, it).placements);
-        const rem = remaining(cat, it);
-        const canConsume = pulled && line.qty_needed != null && rem != null && !consumedIds.includes(it.id);
-        return (
-          <div class="row small" style={{ marginTop: '6px', paddingLeft: '34px' }}>
-            <a class="grow" href={`/item/${it.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
-              <span class="loc" style={{ fontSize: '18px' }}>{loc || '—'}</span>{' '}
-              <span class="muted">{cat.kits.get(it.kit_id)?.code}{rem != null ? ` · ${fmtQty(rem)} left` : ''}</span>{' '}
-              <StatusBadge status={it.status} />
-            </a>
-            {canConsume && (
-              <button
-                class="btn small"
-                onClick={async () => {
-                  await consume(it, line.qty_needed!, listId, null);
-                  setConsumedIds([...consumedIds, it.id]);
-                }}
-              >Mark {fmtQty(line.qty_needed!)} consumed</button>
-            )}
-          </div>
-        );
-      })}
+      {!single && r.items.map((it) => (
+        <a class="row small" href={`/item/${it.id}`} style={{ paddingLeft: '38px', color: 'inherit', textDecoration: 'none' }}>
+          <span class="grow meta">{cat.kits.get(it.kit_id)?.code}{remaining(cat, it) != null ? ` · ${fmtQty(remaining(cat, it)!)} left` : ''} <StatusBadge status={it.status} /></span>
+          <span class={`tag sm${pulled ? ' dim' : ''}`}>{formatLocations(cat, effectiveLocation(cat, it).placements) || '—'}</span>
+        </a>
+      ))}
+      {pulled && line.qty_needed != null && (
+        <div class="row wrap" style={{ paddingLeft: '38px' }}>
+          {r.items.filter((it) => remaining(cat, it) != null && !consumedIds.includes(it.id)).map((it) => (
+            <button
+              class="btn small"
+              onClick={async () => {
+                await consume(it, line.qty_needed!, listId, null);
+                setConsumedIds([...consumedIds, it.id]);
+              }}
+            >Log {fmtQty(line.qty_needed!)} consumed{r.items.length > 1 ? ` from ${cat.kits.get(it.kit_id)?.code}` : ''}</button>
+          ))}
+        </div>
+      )}
+      {!pulled && (
+        <button class="btn small" style={{ alignSelf: 'flex-end', minHeight: '30px' }} onClick={() => commit(`Remove ${line.stock_code}`, [deleteOp('pick_list_lines', line.id)])}>Remove</button>
+      )}
     </div>
   );
 }

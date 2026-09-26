@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useLocation, useRoute } from 'preact-iso';
 import {
-  ancestors, childrenStoredElsewhere, consumed, effectiveLocation, fmtQty, formatLocations, remaining, splitMismatch,
+  ancestors, childrenStoredElsewhere, consumed, effectiveLocation, fmtQty, remaining, splitMismatch,
 } from '../../shared/inventory';
 import { ITEM_STATUSES, type Item, type Placement } from '../../shared/schema';
-import { ItemRow } from '../components/ItemRow';
+import { ItemRow, LocTags } from '../components/ItemRow';
+import { AlertIcon, ArrowIcon, CheckIcon, UndoIcon } from '../components/icons';
 import { LocationPicker } from '../components/LocationPicker';
 import { Page } from '../components/chrome';
 import {
@@ -18,10 +19,14 @@ export function ItemDetailPage() {
   const { params } = useRoute();
   const cat = catalog.value;
   const item = cat.items.get(Number(params.id));
-  if (!loaded.value) return <Page title="Item" back>{null}</Page>;
-  if (!item) return <Page title="Item" back><p class="muted center">This item no longer exists.</p></Page>;
+  if (!loaded.value) return <Page back>{null}</Page>;
+  if (!item) return <Page back><p class="muted center">This item no longer exists.</p></Page>;
   return <ItemDetail item={item} />;
 }
+
+const STATUS_ON: Record<Item['status'], string> = {
+  expected: 'on', received: 'on-ok', missing: 'on-bad', damaged: 'on-bad', backordered: 'on-warn',
+};
 
 function ItemDetail({ item }: { item: Item }) {
   const cat = catalog.value;
@@ -32,47 +37,55 @@ function ItemDetail({ item }: { item: Item }) {
   const [moving, setMoving] = useState(false);
 
   return (
-    <Page title={item.stock_code} back>
-      <div>
-        <div class="code" style={{ fontSize: '28px' }}>{item.stock_code}</div>
-        {item.description && <div class="desc">{item.description}</div>}
-        <div class="small muted">
+    <Page back>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <h1 class="code lg" style={{ margin: 0 }}>{item.stock_code}</h1>
+        {item.description && <div style={{ fontSize: '17px' }}>{item.description}</div>}
+        <div class="meta" style={{ fontSize: '14px' }}>
           {kit?.code}
-          {anc.map((a) => <> › <a href={`/item/${a.id}`}>{a.stock_code}</a></>)}
+          {anc.map((a) => <> › <a href={`/item/${a.id}`} style={{ textDecoration: 'none', fontWeight: 500 }}>{a.stock_code}</a></>)}
           {item.vans_bin && <> · Van's bin {item.vans_bin}</>}
         </div>
       </div>
 
-      <div class="card stack">
-        <div class="row">
-          <div class="grow">
-            <div class="small muted">Location</div>
-            {eff.placements.length
-              ? <div class="loc" style={{ fontSize: '30px', whiteSpace: 'normal' }}>{formatLocations(cat, eff.placements)}</div>
-              : <div class="loc none">No location</div>}
-            {eff.inheritedFrom && <div class="small muted">From {eff.inheritedFrom.stock_code}</div>}
+      <section class="card stack">
+        <div class="row" style={{ alignItems: 'flex-start', gap: '14px' }}>
+          <div class="grow" style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+            <div class="section-title" style={{ margin: 0 }}>Stored in</div>
+            <LocTags placements={eff.placements} size="lg" />
+            {eff.inheritedFrom && <div class="meta">From {eff.inheritedFrom.stock_code}</div>}
           </div>
-          <button class="btn primary" onClick={() => setMoving(!moving)}>{moving ? 'Cancel' : 'Move'}</button>
+          <button class="btn" onClick={() => setMoving(!moving)}>{moving ? 'Cancel' : <><ArrowIcon />Move</>}</button>
         </div>
         {splitMismatch(cat, item) && (
           <div class="banner warn small">
-            Split quantities add up to {fmtQty((cat.placementsByItem.get(item.id) ?? []).reduce((s, p) => s + (p.qty ?? 0), 0))},
-            but {fmtQty(storedQty(cat, item))} {item.unit} should be on hand.
+            <AlertIcon />
+            <span>
+              Split quantities add up to {fmtQty((cat.placementsByItem.get(item.id) ?? []).reduce((s, p) => s + (p.qty ?? 0), 0))},
+              but {fmtQty(storedQty(cat, item))} {item.unit} should be on hand.
+            </span>
           </div>
         )}
         {!eff.inheritedFrom && eff.placements.length > 0 && anc.some((a) => cat.placementsByItem.get(a.id)?.length) && (
-          <button class="btn small" onClick={() => useParentLocation(cat, item)}>Use bag location instead</button>
+          <button class="btn small" onClick={() => useParentLocation(cat, item)}>Use the bag's location instead</button>
         )}
         {moving && <MovePanel item={item} placements={eff.placements} onDone={() => setMoving(false)} />}
-      </div>
+      </section>
 
       <div class="section-title">Status</div>
-      <div class="seg">
+      <div class="chips" role="group" aria-label="Status">
         {ITEM_STATUSES.map((s) => (
-          <button class={item.status === s ? 'on' : ''} onClick={() => setStatus(cat, item, s)}>{s}</button>
+          <button
+            class={`chip${item.status === s ? ` ${STATUS_ON[s]}` : ''}`}
+            aria-pressed={item.status === s}
+            onClick={() => setStatus(cat, item, s)}
+          >
+            {item.status === s && s !== 'expected' && <CheckIcon />}
+            {s[0].toUpperCase() + s.slice(1)}
+          </button>
         ))}
       </div>
-      {item.item_type !== 'part' && <p class="small muted">Sets every item inside this {item.item_type}.</p>}
+      {item.item_type !== 'part' && <p class="meta">Sets every item inside this {item.item_type}.</p>}
 
       {item.item_type === 'part' && <QuantityCard item={item} />}
 
@@ -81,7 +94,7 @@ function ItemDetail({ item }: { item: Item }) {
       {children.length > 0 && (
         <>
           <div class="section-title">Inside this {item.item_type}</div>
-          <div class="list">{children.map((c) => <ItemRow item={c} />)}</div>
+          <div class="cards">{children.map((c) => <ItemRow item={c} />)}</div>
         </>
       )}
 
@@ -132,7 +145,7 @@ function MovePanel({ item, placements, onDone }: { item: Item; placements: Place
           <span>{elsewhere.length} part{elsewhere.length === 1 ? '' : 's'} from this {item.item_type} {elsewhere.length === 1 ? 'is' : 'are'} stored elsewhere ({elsewhere.map((e) => e.stock_code).join(', ')}). Move them too.</span>
         </label>
       )}
-      <div class="small muted">Move to:</div>
+      <div class="section-title" style={{ margin: '4px 0 0' }}>Move to</div>
       <LocationPicker
         exclude={mode === 'all' && placements.length === 1 && !effectiveLocation(cat, item).inheritedFrom ? [placements[0].location_id] : []}
         onPick={async (locId) => {
@@ -151,50 +164,55 @@ function QuantityCard({ item }: { item: Item }) {
   const cat = catalog.value;
   const rem = remaining(cat, item);
   const log = [...(cat.consumptionsByItem.get(item.id) ?? [])].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
-  const [qty, setQty] = useState('');
+  const [qty, setQty] = useState('1');
   const [note, setNote] = useState('');
 
   if (rem == null) {
     return (
-      <div class="card">
-        <div class="small muted">Quantity</div>
-        <div class="code">{fmtQty(item.qty)} lb</div>
-        <div class="small muted">Sold by weight. Consumed and remaining aren't tracked.</div>
-      </div>
+      <section class="card">
+        <div class="stat-label">Quantity</div>
+        <div class="stat">{fmtQty(item.qty)} lb</div>
+        <div class="meta">Sold by weight, so consumed and remaining aren't tracked.</div>
+      </section>
     );
   }
   const n = Number(qty);
+  const used = consumed(cat, item);
+  const step = (d: number) => setQty(String(Math.max(0, (Number(qty) || 0) + d)));
   return (
-    <div class="card stack">
-      <div class="row">
-        <div class="grow"><div class="small muted">Shipped</div><div class="code">{fmtQty(item.qty)}</div></div>
-        <div class="grow"><div class="small muted">Consumed</div><div class="code">{fmtQty(consumed(cat, item))}</div></div>
-        <div class="grow"><div class="small muted">Remaining</div><div class="code" style={{ color: rem < 0 ? 'var(--bad)' : undefined }}>{fmtQty(rem)}</div></div>
+    <section class="card stack">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px' }}>
+        <div><div class="stat-label">Shipped</div><div class="stat">{fmtQty(item.qty)}</div></div>
+        <div><div class="stat-label">Consumed</div><div class="stat">{fmtQty(used)}</div></div>
+        <div><div class="stat-label">Left</div><div class="stat" style={{ color: rem < 0 ? 'var(--bad)' : 'var(--ok)' }}>{fmtQty(rem)}</div></div>
       </div>
+      <div class="progress"><div style={{ width: `${Math.min(100, item.qty ? (used / item.qty) * 100 : 0)}%`, background: 'var(--navy)' }} /></div>
       <div class="row">
-        <input class="input" style={{ width: '90px' }} inputMode="decimal" placeholder="Qty" value={qty} onInput={(e) => setQty((e.target as HTMLInputElement).value)} />
-        <input class="input grow" placeholder="Where used (optional), e.g. 08-03" value={note} onInput={(e) => setNote((e.target as HTMLInputElement).value)} />
+        <div class="stepper">
+          <button type="button" aria-label="Fewer" onClick={() => step(-1)}>−</button>
+          <input aria-label="Quantity consumed" inputMode="decimal" value={qty} onInput={(e) => setQty((e.target as HTMLInputElement).value)} />
+          <button type="button" aria-label="More" onClick={() => step(1)}>+</button>
+        </div>
+        <button
+          class="btn primary grow"
+          disabled={!(n > 0)}
+          onClick={async () => { await consume(item, n, null, note.trim() || null); setQty('1'); setNote(''); }}
+        >Log {n > 0 ? fmtQty(n) : ''} consumed</button>
       </div>
-      <button
-        class="btn primary"
-        disabled={!(n > 0)}
-        onClick={async () => { await consume(item, n, null, note.trim() || null); setQty(''); setNote(''); }}
-      >Log consumed</button>
+      <input class="input" placeholder="Where used (optional), e.g. 08-03" value={note} onInput={(e) => setNote((e.target as HTMLInputElement).value)} />
       {log.length > 0 && (
-        <div class="list">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {log.map((c) => (
-            <div class="list-item row small">
-              <span class="grow">
-                <strong>{fmtQty(c.qty)}</strong>{' '}
-                {c.note ?? pickListLabel(c.pick_list_id)}
-                <span class="muted"> · {new Date(c.updated_at).toLocaleDateString()}</span>
-              </span>
-              <button class="btn small danger" onClick={() => commit(`Remove consumption of ${item.stock_code}`, [deleteOp('consumptions', c.id)])}>Undo</button>
+            <div class="row small">
+              <strong style={{ minWidth: '32px' }}>{fmtQty(c.qty)}</strong>
+              <span class="grow">{c.note ?? pickListLabel(c.pick_list_id)}</span>
+              <span class="meta">{new Date(c.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+              <button class="btn small" onClick={() => commit(`Remove consumption of ${item.stock_code}`, [deleteOp('consumptions', c.id)])} aria-label="Undo this entry"><UndoIcon /></button>
             </div>
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 

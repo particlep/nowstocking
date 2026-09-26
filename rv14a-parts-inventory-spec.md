@@ -257,6 +257,14 @@ A part number can live in more than one kit and location. The pick list matches 
 | `/labels` | Labels | Pick locations, pick template, pick starting label position, download PDF. |
 | `/settings` | Settings | CSV export, sync status, pending edit count. |
 
+## Look and Feel
+
+- Brand: **NowStocking**, tagline "Parts inventory · find it, scan it, pull it". The logo is scan-corner brackets around a parts box.
+- Light theme only: paper #F5F3EE background, navy #1B2A41 for text and location tags, signal orange #C2410C only for things you tap. Status colors: green #15803D done, red #B91C1C problem, amber #A16207 flagged or backordered.
+- Type, bundled for offline use: Barlow Condensed for location codes and titles, IBM Plex Mono for part numbers, IBM Plex Sans for everything else.
+- Tab bar: Search, Put away, Scan (raised center button), Pick, More. Focused tasks such as reviewing an import line hide the tab bar. Main actions sit in a bottom bar within thumb reach.
+- Design canvas: https://claude.ai/artifact/GoZgUFCoVoiUbAhb2fsX8G
+
 ## Search Behavior
 
 - Normalize input the same way as `search_key`: uppercase, strip spaces, dashes, and dots.

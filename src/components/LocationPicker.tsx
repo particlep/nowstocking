@@ -24,7 +24,7 @@ export function LocationPicker({ onPick, exclude = [] }: { onPick: (locationId: 
       <div class="list">
         {list.map((l) => (
           <button class="list-item" onClick={() => onPick(l.id)}>
-            <span class="loc">{l.code}</span> <span class="muted small">{l.type}{l.description ? ` · ${l.description}` : ''}</span>
+            <span class="tag sm">{l.code}</span> <span class="meta" style={{ marginLeft: '6px' }}>{l.type}{l.description ? ` · ${l.description}` : ''}</span>
           </button>
         ))}
         {code && !exists && (

@@ -2,12 +2,28 @@ import { useState } from 'preact/hooks';
 import { useLocation, useRoute } from 'preact-iso';
 import { fmtQty, itemsAtLocation } from '../../shared/inventory';
 import { normalizeLocationCode } from '../../shared/normalize';
-import { LOCATION_TYPES, type LocationType } from '../../shared/schema';
-import { ItemRow } from '../components/ItemRow';
+import { LOCATION_TYPES, type Item, type LocationType } from '../../shared/schema';
+import { StatusBadge } from '../components/ItemRow';
 import { Page } from '../components/chrome';
+import { ChevronIcon, PlusIcon } from '../components/icons';
 import { createLocation, guessLocationType } from '../data/actions';
 import { commit, deleteOp, updateOp } from '../data/mutate';
 import { catalog, loaded } from '../data/store';
+
+function PartLine({ item, qty }: { item: Item; qty?: number | null }) {
+  return (
+    <a class="list-item row" href={`/item/${item.id}`}>
+      <span class="grow" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        <span class="code">{item.stock_code} <StatusBadge status={item.status} /></span>
+        {item.description && <span class="desc small">{item.description}</span>}
+      </span>
+      <span style={{ fontWeight: 600, fontSize: '15px', whiteSpace: 'nowrap' }}>
+        {qty != null ? `${fmtQty(qty)} here` : item.item_type === 'part' ? `${fmtQty(item.qty)} ${item.unit}` : ''}
+      </span>
+      <ChevronIcon class="chev" />
+    </a>
+  );
+}
 
 export function LocationDetailPage() {
   const { params } = useRoute();
@@ -17,37 +33,45 @@ export function LocationDetailPage() {
   const loc = cat.locationsByCode.get(code);
   const [editing, setEditing] = useState(false);
 
-  if (!loaded.value) return <Page title={code} back>{null}</Page>;
+  if (!loaded.value) return <Page back>{null}</Page>;
 
   if (!loc) {
     return (
-      <Page title={code} back>
-        <div class="card stack">
-          <strong>{code} isn't set up yet.</strong>
-          <span class="muted">Create it to start putting parts here.</span>
-          <button class="btn primary" onClick={() => createLocation(code, guessLocationType(code), null)}>
-            Create {code}
+      <Page back>
+        <section class="hero">
+          <div class="hero-code">{code}</div>
+          <div class="hero-meta">This location isn't set up yet.</div>
+          <button class="btn primary lg" onClick={() => createLocation(code, guessLocationType(code), null)}>
+            <PlusIcon />Create {code}
           </button>
-        </div>
+        </section>
       </Page>
     );
   }
 
   const entries = itemsAtLocation(cat, loc.id);
   const direct = entries.filter((e) => !e.inherited);
-  const partCount = entries.filter((e) => e.item.item_type === 'part').length;
+  const parts = entries.filter((e) => e.item.item_type === 'part').length;
+  const bags = direct.filter((e) => e.item.item_type !== 'part').length;
 
   return (
-    <Page title={loc.code} back>
-      <div class="row wrap">
-        <div class="grow">
-          <div class="loc" style={{ fontSize: '34px' }}>{loc.code}</div>
-          <div class="muted small">{loc.type}{loc.description ? ` · ${loc.description}` : ''} · {partCount} part{partCount === 1 ? '' : 's'}</div>
+    <Page back actions={<button class="btn small" onClick={() => setEditing(!editing)}>{editing ? 'Done' : 'Edit'}</button>}>
+      <section class="hero">
+        <div class="row" style={{ alignItems: 'flex-end', gap: '14px' }}>
+          <div class="hero-code">{loc.code}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', paddingBottom: '6px' }}>
+            <div class="hero-kicker">{loc.type}</div>
+            <div class="hero-meta">{parts} part{parts === 1 ? '' : 's'}{bags ? ` · ${bags} bag${bags === 1 ? '' : 's'}` : ''}</div>
+            {loc.description && <div class="hero-meta">{loc.description}</div>}
+          </div>
         </div>
-        <a class="btn primary" href={`/putaway?loc=${encodeURIComponent(loc.code)}`}>Put away here</a>
-      </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px' }}>
+          <a class="btn primary" href={`/putaway?loc=${encodeURIComponent(loc.code)}`}><PlusIcon />Put away here</a>
+          <a class="btn ghost-dark" href={`/labels?loc=${encodeURIComponent(loc.code)}`}>Print label</a>
+        </div>
+      </section>
 
-      {editing ? (
+      {editing && (
         <LocationEditor
           id={loc.id}
           type={loc.type}
@@ -55,28 +79,30 @@ export function LocationDetailPage() {
           empty={direct.length === 0}
           onDone={(deleted) => { setEditing(false); if (deleted) route('/locations'); }}
         />
-      ) : (
-        <div class="row wrap">
-          <button class="btn small" onClick={() => setEditing(true)}>Edit</button>
-          <a class="btn small" href={`/labels?loc=${encodeURIComponent(loc.code)}`}>Print label</a>
-        </div>
       )}
 
+      <div class="section-title">What's here</div>
       {direct.length === 0 ? (
         <p class="muted center">Nothing stored here yet.</p>
       ) : (
-        direct.map(({ item, placement }) => {
-          const inside = entries.filter((e) => e.inherited && e.placement.id === placement.id);
-          return (
-            <div class="list">
-              <ItemRow item={item} showLocation={placement.qty != null} />
-              {placement.qty != null && (
-                <div class="list-item small muted">{fmtQty(placement.qty)} {item.unit} of this item stored here</div>
-              )}
-              {inside.map((e) => <ItemRow item={e.item} indent showLocation={false} />)}
-            </div>
-          );
-        })
+        <div class="cards">
+          {direct.map(({ item, placement }) => {
+            const inside = entries.filter((e) => e.inherited && e.placement.id === placement.id);
+            if (item.item_type === 'part') {
+              return <div class="list"><PartLine item={item} qty={placement.qty} /></div>;
+            }
+            return (
+              <div class="list">
+                <a class="list-head" href={`/item/${item.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                  <span class="code grow" style={{ fontSize: '15px' }}>{item.stock_code}</span>
+                  <span class="meta">{cat.kits.get(item.kit_id)?.code}</span>
+                </a>
+                {inside.map((e) => <PartLine item={e.item} />)}
+                {inside.length === 0 && <div class="list-item meta">Everything in this {item.item_type} is stored elsewhere.</div>}
+              </div>
+            );
+          })}
+        </div>
       )}
     </Page>
   );
@@ -97,7 +123,7 @@ function LocationEditor(props: {
       </label>
       <label class="field">
         <span>Description</span>
-        <input class="input" value={desc} onInput={(e) => setDesc((e.target as HTMLInputElement).value)} />
+        <input class="input" placeholder="Shelf 1, top left" value={desc} onInput={(e) => setDesc((e.target as HTMLInputElement).value)} />
       </label>
       <div class="row wrap">
         <button
@@ -107,11 +133,10 @@ function LocationEditor(props: {
             props.onDone(false);
           }}
         >Save</button>
-        <button class="btn" onClick={() => props.onDone(false)}>Cancel</button>
+        <span class="grow" />
         <button
           class="btn danger"
           disabled={!props.empty}
-          title={props.empty ? '' : 'Move everything out first'}
           onClick={async () => {
             if (!confirm('Delete this location?')) return;
             await commit('Delete location', [deleteOp('locations', props.id)]);
@@ -119,7 +144,7 @@ function LocationEditor(props: {
           }}
         >Delete</button>
       </div>
-      {!props.empty && <p class="small muted">A location can be deleted once it's empty.</p>}
+      {!props.empty && <p class="meta">A location can be deleted once it's empty.</p>}
     </div>
   );
 }
