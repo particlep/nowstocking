@@ -21,8 +21,12 @@
     // Cloudflare Access: team domain (https://<team>.cloudflareaccess.com) and the app's AUD tag.
     "ACCESS_TEAM_DOMAIN": "https://drinkmorecoffee.cloudflareaccess.com",
     "ACCESS_AUD": "54134992e542d3184a0d89d3dc8d596af3ddd4b00a513d023081807922c6547a",
-    "IMPORT_MODEL": "claude-opus-5"
+    "IMPORT_MODEL": "claude-opus-5",
+    // Sender for emailed label PDFs. The domain is onboarded to Cloudflare Email Sending.
+    "EMAIL_FROM": "labels@nowstocking.com"
   },
+
+  "send_email": [{ "name": "EMAIL" }],
 
   "d1_databases": [
     {

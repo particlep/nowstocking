@@ -355,6 +355,7 @@ Rules:
 - Start position selector so partial sheets get reused.
 - Print at 100% / Actual size. The PDF page should say this in the margin.
 - Include a "print test on plain paper" option that adds label outlines.
+- "Email the PDF" checkbox: sends the PDF as an attachment through Cloudflare Email Sending (`send_email` binding, from `labels@nowstocking.com`). The address defaults to the signed-in user's email and can be changed; the choice is remembered on the phone. Unchecked, Make PDF opens the share sheet (Print, Save to Files).
 
 ## Storage Conventions
 

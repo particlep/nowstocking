@@ -1,8 +1,11 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { useLocation } from 'preact-iso';
 import { Page } from '../components/chrome';
 import { ShareFileButton } from '../components/ShareFileButton';
-import { catalog } from '../data/store';
+import { CheckIcon } from '../components/icons';
+import { getMeta, setMeta } from '../data/idb';
+import { catalog, me } from '../data/store';
+import { api } from '../data/sync';
 import { TEMPLATES, type Template } from '../lib/labelTemplates';
 
 export function LabelsPage() {
@@ -15,7 +18,21 @@ export function LabelsPage() {
   const [start, setStart] = useState(0);
   const [outlines, setOutlines] = useState(false);
   const [showDesc, setShowDesc] = useState(false);
+  const [emailOn, setEmailOn] = useState(false);
+  const [emailTo, setEmailTo] = useState('');
+  const [sending, setSending] = useState(false);
+  const [emailResult, setEmailResult] = useState<{ ok: boolean; text: string } | null>(null);
   const t = TEMPLATES.find((x) => x.id === tid)!;
+
+  // Remember the email choice; default the address to the signed-in user.
+  useEffect(() => {
+    void getMeta<{ on: boolean; to: string } | null>('labelEmail', null).then((saved) => {
+      if (saved) { setEmailOn(saved.on); setEmailTo(saved.to); }
+    });
+  }, []);
+  useEffect(() => {
+    if (!emailTo && me.value.includes('@')) setEmailTo(me.value);
+  }, [me.value]);
   const perSheet = t.cols * t.rows;
 
   const toggle = (id: number) => {
@@ -23,6 +40,32 @@ export function LabelsPage() {
     if (n.has(id)) n.delete(id);
     else n.add(id);
     setSelected(n);
+  };
+
+  const summary = () => {
+    const codes = locations.filter((l) => selected.has(l.id)).map((l) => l.code);
+    const list = codes.length <= 6 ? codes.join(', ') : `${codes[0]}–${codes[codes.length - 1]} (${codes.length})`;
+    return `${list} on Avery ${t.id}${outlines ? ', test print' : ''}`;
+  };
+
+  const emailPdf = async () => {
+    setEmailResult(null);
+    setSending(true);
+    try {
+      const file = await makePdf();
+      const form = new FormData();
+      form.append('to', emailTo.trim());
+      form.append('summary', summary());
+      form.append('file', file);
+      const r = await api<{ to: string }>('/api/email/labels', { method: 'POST', body: form });
+      setEmailResult({ ok: true, text: `Sent to ${r.to}` });
+      void setMeta('labelEmail', { on: true, to: emailTo.trim() });
+    } catch (e) {
+      const msg = e instanceof TypeError ? 'Emailing needs a connection.' : e instanceof Error ? e.message : String(e);
+      setEmailResult({ ok: false, text: msg });
+    } finally {
+      setSending(false);
+    }
   };
 
   const makePdf = async () => {
@@ -88,8 +131,41 @@ export function LabelsPage() {
 
       <label class="row small"><input type="checkbox" checked={showDesc} onChange={(e) => setShowDesc((e.target as HTMLInputElement).checked)} /> Print location description under the code</label>
       <label class="row small"><input type="checkbox" checked={outlines} onChange={(e) => setOutlines((e.target as HTMLInputElement).checked)} /> Test on plain paper (adds label outlines)</label>
-      <ShareFileButton label="Make PDF" make={makePdf} disabled={!selected.size} class="btn primary lg block" />
-      <p class="small muted">Opens the share sheet: choose Print, or Save to Files. Print at 100% / Actual size. Hold a test print against a label sheet up to the light before using real labels.</p>
+      <label class="row small">
+        <input
+          type="checkbox" checked={emailOn}
+          onChange={(e) => {
+            const on = (e.target as HTMLInputElement).checked;
+            setEmailOn(on);
+            setEmailResult(null);
+            void setMeta('labelEmail', { on, to: emailTo.trim() });
+          }}
+        /> Email the PDF
+      </label>
+      {emailOn && (
+        <label class="field">
+          <span>Send to</span>
+          <input
+            class="input" type="email" inputMode="email" autoCapitalize="off" autoCorrect="off" placeholder="you@example.com"
+            value={emailTo} onInput={(e) => setEmailTo((e.target as HTMLInputElement).value)}
+          />
+        </label>
+      )}
+
+      {emailOn ? (
+        <button class="btn primary lg block" disabled={!selected.size || sending || !/^\S+@\S+\.\S+$/.test(emailTo.trim())} onClick={emailPdf}>
+          {sending ? 'Sending…' : 'Email PDF'}
+        </button>
+      ) : (
+        <ShareFileButton label="Make PDF" make={makePdf} disabled={!selected.size} class="btn primary lg block" />
+      )}
+      {emailResult && (
+        <p class={`banner ${emailResult.ok ? 'ok' : 'bad'}`}>{emailResult.ok && <CheckIcon />}{emailResult.text}</p>
+      )}
+      <p class="small muted">
+        {emailOn ? 'Emails the PDF as an attachment, to print from a computer.' : 'Opens the share sheet: choose Print, or Save to Files.'}{' '}
+        Print at 100% / Actual size. Hold a test print against a label sheet up to the light before using real labels.
+      </p>
     </Page>
   );
 }

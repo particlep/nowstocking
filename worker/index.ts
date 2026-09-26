@@ -4,6 +4,7 @@ import { buildCatalog, buildCsv } from '../shared/inventory';
 import type { Mutation } from '../shared/schema';
 import { TABLE_NAMES } from '../shared/schema';
 import { requireAccess, type AppEnv } from './auth';
+import { emailLabels, EmailError } from './email';
 import {
   createJob, deleteJob, getImportImage, getJob, ImportError, JOB_ID, listJobs, markCommitted, startReading, uploadPage,
 } from './import';
@@ -98,6 +99,15 @@ app.post('/import/jobs/:id/committed', (c) => job(c, async (id) => { await markC
 app.delete('/import/jobs/:id', (c) => job(c, async (id) => { await deleteJob(c.env, id); return c.json({ ok: true }); }));
 
 app.get('/import/image/*', (c) => getImportImage(c.env, c.req.path.replace(/^\/api\/import\/image\//, '')));
+
+app.post('/email/labels', async (c) => {
+  try {
+    return c.json(await emailLabels(c.env, await c.req.formData(), c.get('user')));
+  } catch (e) {
+    if (e instanceof EmailError) return c.json({ error: e.message }, e.status);
+    throw e;
+  }
+});
 
 app.get('/export.csv', async (c) => {
   const { rows } = await readChanges(c.env.DB, 0);
