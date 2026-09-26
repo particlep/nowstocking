@@ -1,0 +1,38 @@
+import { cloudflare } from '@cloudflare/vite-plugin';
+import preact from '@preact/preset-vite';
+import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
+
+export default defineConfig({
+  plugins: [
+    preact(),
+    cloudflare(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      // Access sits in front of the manifest too; send the session cookie when fetching it.
+      useCredentials: true,
+      includeAssets: ['icon.svg', 'apple-touch-icon.png'],
+      manifest: {
+        name: 'RV-14A Parts',
+        short_name: 'RV-14A Parts',
+        description: 'Where every RV-14A part is stored.',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        background_color: '#f6f5f2',
+        theme_color: '#1f5fbf',
+        icons: [
+          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api\//, /^\/cdn-cgi\//],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+      },
+    }),
+  ],
+});

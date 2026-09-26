@@ -1,0 +1,155 @@
+import { TABLE_NAMES, type MutationsResponse, type Rows, type SyncResponse, type TableName } from '../../shared/schema';
+import { db, getMeta, setMeta } from './idb';
+import {
+  getServerRows, lastSyncedAt, me, outbox, rejected, setServerRows, syncError, syncState, type Tables,
+} from './store';
+
+export class SignInRequired extends Error {}
+
+/**
+ * Fetch an API route. When the Access session has expired, Access answers with a redirect
+ * to its login page instead of JSON. Detect that and ask for sign-in; never drop the outbox.
+ */
+export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, { ...init, redirect: 'manual', credentials: 'same-origin' });
+  if (res.type === 'opaqueredirect' || res.status === 401 || res.status === 403) throw new SignInRequired();
+  const type = res.headers.get('content-type') ?? '';
+  if (!type.includes('application/json')) {
+    if (type.includes('text/html')) throw new SignInRequired();
+    throw new Error(`Unexpected response ${res.status}`);
+  }
+  const body = (await res.json()) as T & { error?: string };
+  if (!res.ok) throw new Error(body.error ?? `Request failed (${res.status})`);
+  return body;
+}
+
+const PUSH_BATCH = 25;
+
+async function push() {
+  const d = await db();
+  for (let rounds = 0; rounds < 200 && outbox.value.length; rounds++) {
+    const batch = outbox.value.slice(0, PUSH_BATCH);
+    const res = await api<MutationsResponse>('/api/mutations', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ mutations: batch.map((e) => e.mutation) }),
+    });
+    if (!res.results.length) break;
+    const settled = new Set<string>();
+    const tx = d.transaction(['outbox', 'rejected'], 'readwrite');
+    for (const r of res.results) {
+      const entry = batch.find((e) => e.mutation.id === r.id);
+      if (!entry) continue;
+      settled.add(r.id);
+      await tx.objectStore('outbox').delete(entry.seq!);
+      if (r.status === 'rejected') {
+        await tx.objectStore('rejected').put({ mutation: entry.mutation, result: r, rejected_at: new Date().toISOString() });
+      }
+    }
+    await tx.done;
+    outbox.value = outbox.value.filter((e) => !settled.has(e.mutation.id));
+    rejected.value = await d.getAll('rejected');
+  }
+}
+
+async function pull() {
+  const d = await db();
+  const since = await getMeta<number>('lastVersion', 0);
+  const res = await api<SyncResponse>(`/api/sync?since=${since}`);
+  const base = getServerRows();
+  const next = { ...base } as Tables;
+  const tx = d.transaction([...TABLE_NAMES, 'meta'] as (TableName | 'meta')[], 'readwrite');
+  for (const t of TABLE_NAMES) {
+    const rows = res.rows[t] as Rows[TableName][];
+    if (!res.full && !rows.length) continue;
+    const store = tx.objectStore(t);
+    const map = res.full ? new Map<number, unknown>() : new Map(base[t] as Map<number, unknown>);
+    if (res.full) await store.clear();
+    for (const row of rows) {
+      await store.put(row as never);
+      map.set(row.id, row);
+    }
+    (next as Record<TableName, Map<number, unknown>>)[t] = map;
+  }
+  const at = new Date().toISOString();
+  await tx.objectStore('meta').put(res.version, 'lastVersion');
+  await tx.objectStore('meta').put(at, 'lastSyncedAt');
+  await tx.done;
+  lastSyncedAt.value = at;
+  setServerRows(next);
+}
+
+async function loadMe() {
+  if (me.value !== 'me') return;
+  const r = await api<{ email: string }>('/api/me');
+  me.value = r.email;
+  await setMeta('me', r.email);
+}
+
+let running: Promise<void> | null = null;
+let again = false;
+
+/** Push the outbox, then pull changes. Safe to call often; concurrent calls coalesce. */
+export function sync(): Promise<void> {
+  if (running) {
+    again = true;
+    return running;
+  }
+  running = (async () => {
+    do {
+      again = false;
+      if (!navigator.onLine) {
+        syncState.value = 'offline';
+        return;
+      }
+      syncState.value = 'syncing';
+      try {
+        await loadMe();
+        await push();
+        await pull();
+        syncState.value = 'idle';
+        syncError.value = null;
+      } catch (e) {
+        if (e instanceof SignInRequired) syncState.value = 'signin';
+        else if (e instanceof TypeError) syncState.value = 'offline'; // fetch network failure
+        else {
+          syncState.value = 'error';
+          syncError.value = e instanceof Error ? e.message : String(e);
+        }
+        return;
+      }
+    } while (again);
+  })().finally(() => {
+    running = null;
+  });
+  return running;
+}
+
+let timer: ReturnType<typeof setTimeout> | undefined;
+export function scheduleSync(delay = 400) {
+  clearTimeout(timer);
+  timer = setTimeout(() => void sync(), delay);
+}
+
+/** Forget the local copy and pull everything again. Pending edits are kept. */
+export async function fullResync() {
+  await setMeta('lastVersion', 0);
+  await sync();
+}
+
+export function startSyncLoop() {
+  void sync();
+  window.addEventListener('online', () => void sync());
+  window.addEventListener('offline', () => (syncState.value = 'offline'));
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') void sync();
+  });
+  setInterval(() => {
+    if (document.visibilityState === 'visible') void sync();
+  }, 60_000);
+}
+
+/** Full page load through Access, which shows its login and returns here. */
+export function signIn() {
+  window.location.reload();
+}
