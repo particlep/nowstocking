@@ -252,7 +252,7 @@ A part number can live in more than one kit and location. The pick list matches 
 | `/item/new` | Add Item | Manual item entry. |
 | `/putaway` | Put-away | Scan a location once. Then type or pick items in a row. Each is assigned to that location until I scan a new one. Shows a running list of what I've put there. An Undo button reverses the last assignment. |
 | `/receive/:kit` | Receiving | Per kit checklist in packing list order. Tap to mark received, missing, damaged, or backordered. Marking a bag or sub-kit sets all its children. Single parts can be overridden after. Summary of problems at the top. |
-| `/pick`, `/pick/:id` | Pick Lists | Create by section and page. Add lines with autocomplete. Lines sort by location. Check off as pulled. Lines with no location or a problem status float to the top. |
+| `/pick`, `/pick/:id` | Pick Lists | Create by section, page and a required title, or from instruction photos. Edit or delete from the list's Edit button. Add lines with autocomplete. Lines sort by location. Check off as pulled. Lines with no location or a problem status float to the top. |
 | `/import` | Import | Upload all packing list photos for one kit. Review parsed rows in an editable table. Commit to a kit. |
 | `/labels` | Labels | Pick locations, pick template, pick starting label position, download PDF. |
 | `/settings` | Settings | CSV export, sync status, pending edit count. |
@@ -331,7 +331,7 @@ If the Cloudflare Access session expires while offline, API calls fail on reconn
 1. In the Pick tab, tap From photos and take a photo of each plans page for the step.
 2. The same background Workflow reads each photo (`kind = 'instructions'`) and lists every part number in the step text and figure callouts, plus the page label (e.g. 10-27), section, a short title, and any stated quantity (e.g. "2X"). Drill sizes, figure references and wire colors are ignored. Harnesses and wire labels are tagged electrical.
 3. Review (`/pick/photos/:job`) merges parts across photos. Each part shows where it's stored (one line per kit it shipped in). Parts in inventory are ticked by default. Parts not found show "Not in inventory" with close matches to pick from (a misread, or F-01412 vs F-01412C).
-4. Page, section and title are editable. Create pick list makes the list and its lines. If a pick list for that page exists, the parts can be added to it instead, skipping ones already there.
+4. A title is required: it is typed when uploading the photos (prefilled from the page if left to the review), and is editable on review. Page and section are editable too. Create pick list makes the list and its lines. If a pick list for that page exists, the parts can be added to it instead, skipping ones already there.
 
 ## Labels
 

@@ -8,13 +8,16 @@ import { toJpeg } from '../lib/images';
  * Pick photos, upload them to a new import job, and start background reading.
  * Resumes where it left off if an upload fails.
  */
-export function PhotoUpload({ kind, noun, startLabel, onStarted, children }: {
+export function PhotoUpload({ kind, noun, startLabel, onStarted, titleField, children }: {
   kind: ImportKind;
   noun: string; // "page"
   startLabel: (n: number) => string;
   onStarted: (jobId: string) => void;
+  /** Show a required title input, sent with the job. */
+  titleField?: { label: string; placeholder: string };
   children?: ComponentChildren;
 }) {
+  const [title, setTitle] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +30,7 @@ export function PhotoUpload({ kind, noun, startLabel, onStarted, children }: {
       let id = jobId;
       if (!id) {
         id = (await api<{ id: string }>('/api/import/jobs', {
-          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ page_count: files.length, kind }),
+          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ page_count: files.length, kind, title: titleField ? title.trim() : undefined }),
         })).id;
         setJobId(id);
       }
@@ -50,6 +53,12 @@ export function PhotoUpload({ kind, noun, startLabel, onStarted, children }: {
   return (
     <div class="stack">
       {children}
+      {titleField && (
+        <label class="field">
+          <span>{titleField.label}</span>
+          <input class="input" placeholder={titleField.placeholder} value={title} disabled={busy || !!jobId} onInput={(e) => setTitle((e.target as HTMLInputElement).value)} />
+        </label>
+      )}
       <input
         type="file" accept="image/*" multiple class="input" disabled={busy || !!jobId}
         onChange={(e) => {
@@ -72,9 +81,10 @@ export function PhotoUpload({ kind, noun, startLabel, onStarted, children }: {
           ))}
         </div>
       )}
-      <button class="btn primary block" disabled={!files.length || busy} onClick={upload}>
+      <button class="btn primary block" disabled={!files.length || busy || (!!titleField && !title.trim())} onClick={upload}>
         {error && jobId ? 'Retry upload' : startLabel(files.length)}
       </button>
+      {titleField && !title.trim() && files.length > 0 && <p class="meta center" style={{ margin: 0 }}>Add a title to continue.</p>}
       {progress && <p class="banner small">{progress} Keep this screen open until the upload finishes.</p>}
       {error && <p class="banner bad small">{error}</p>}
     </div>

@@ -58,6 +58,7 @@ export interface ImportPageInfo {
 export interface ImportJob {
   id: string;
   kind: ImportKind;
+  title: string | null;
   status: ImportJobStatus;
   page_count: number;
   created_by: string;
@@ -69,6 +70,7 @@ export interface ImportJob {
 export interface ImportJobSummary {
   id: string;
   kind: ImportKind;
+  title: string | null;
   status: ImportJobStatus;
   page_count: number;
   pages_done: number;

@@ -65,9 +65,11 @@ app.get('/import/jobs', async (c) =>
 );
 
 app.post('/import/jobs', async (c) => {
-  const body = await c.req.json<{ page_count?: number; kind?: ImportKind }>().catch(() => ({}) as { page_count?: number; kind?: ImportKind });
+  type Body = { page_count?: number; kind?: ImportKind; title?: string };
+  const body = await c.req.json<Body>().catch(() => ({}) as Body);
   try {
-    return c.json({ id: await createJob(c.env.DB, c.get('user'), Number(body.page_count), body.kind ?? 'packing_list') });
+    const title = typeof body.title === 'string' ? body.title : null;
+    return c.json({ id: await createJob(c.env.DB, c.get('user'), Number(body.page_count), body.kind ?? 'packing_list', title) });
   } catch (e) {
     if (e instanceof ImportError) return c.json({ error: e.message }, e.status);
     throw e;

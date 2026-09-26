@@ -38,7 +38,7 @@ export function PickListsPage() {
   }, []);
 
   const create = async () => {
-    const op = insertOp('pick_lists', { section: section.trim(), page: page.trim() || null, title: title.trim() || null });
+    const op = insertOp('pick_lists', { section: section.trim(), page: page.trim() || null, title: title.trim() });
     await commit(`New pick list ${page.trim() || section.trim()}`, [op]);
     route(`/pick/${op.id}`);
   };
@@ -57,6 +57,7 @@ export function PickListsPage() {
             noun="photo"
             startLabel={(n) => `Read ${n || ''} photo${n === 1 ? '' : 's'}`}
             onStarted={(id) => route(`/pick/photos/${id}`)}
+            titleField={{ label: 'Title', placeholder: 'Aft deck' }}
           >
             <strong>Pick list from the plans</strong>
             <span class="meta" style={{ fontSize: '14px' }}>
@@ -73,8 +74,8 @@ export function PickListsPage() {
             <label class="field grow"><span>Section</span><input class="input" inputMode="numeric" placeholder="10" value={section} onInput={(e) => setSection((e.target as HTMLInputElement).value)} /></label>
             <label class="field grow"><span>Page</span><input class="input" placeholder="10-27" value={page} onInput={(e) => setPage((e.target as HTMLInputElement).value)} /></label>
           </div>
-          <label class="field"><span>Title (optional)</span><input class="input" placeholder="Aft deck" value={title} onInput={(e) => setTitle((e.target as HTMLInputElement).value)} /></label>
-          <button class="btn primary" disabled={!section.trim()} onClick={create}>Create pick list</button>
+          <label class="field"><span>Title</span><input class="input" placeholder="Aft deck" value={title} onInput={(e) => setTitle((e.target as HTMLInputElement).value)} /></label>
+          <button class="btn primary" disabled={!section.trim() || !title.trim()} onClick={create}>Create pick list</button>
         </div>
       )}
 
@@ -85,7 +86,9 @@ export function PickListsPage() {
             {jobs.map((j) => (
               <a class="list-item row" href={`/pick/photos/${j.id}`}>
                 <span class="grow">
-                  <span style={{ display: 'block', fontWeight: 600 }}>{j.page_label ?? `${j.page_count} photo${j.page_count === 1 ? '' : 's'}`}</span>
+                  <span style={{ display: 'block', fontWeight: 600 }}>
+                    {[j.page_label, j.title].filter(Boolean).join(' · ') || `${j.page_count} photo${j.page_count === 1 ? '' : 's'}`}
+                  </span>
                   <span class="meta">
                     {j.status === 'processing' ? 'Reading…' : j.status === 'uploading' ? 'Upload not finished' : j.pages_failed ? 'Some photos failed' : 'Ready to review'}
                   </span>
@@ -153,6 +156,7 @@ export function PickListDetailPage() {
   const [q, setQ] = useState('');
   const [qty, setQty] = useState('');
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState(false);
   const hits = useMemo(() => search(cat, q, 8).filter((h) => h.item.item_type !== 'subkit'), [cat, q]);
 
   if (!loaded.value) return <Page title="Pick list" back>{null}</Page>;
@@ -183,12 +187,27 @@ export function PickListDetailPage() {
   return (
     <Page
       back="Pick lists"
-      actions={<button class="btn small primary" onClick={() => setAdding(!adding)}>{adding ? 'Done' : <><PlusIcon />Add part</>}</button>}
+      actions={
+        <>
+          <button class="btn small" onClick={() => setEditing(!editing)}>{editing ? 'Done' : 'Edit'}</button>
+          <button class="btn small primary" onClick={() => setAdding(!adding)}>{adding ? 'Done' : <><PlusIcon />Add</>}</button>
+        </>
+      }
     >
       <div class="row" style={{ alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
         <h1 class="large-title" style={{ fontSize: '44px' }}>{list.page ?? `Section ${list.section}`}</h1>
         {list.title && <span class="subtitle">{list.title}</span>}
       </div>
+      {editing && (
+        <EditPickList
+          id={list.id}
+          section={list.section}
+          page={list.page}
+          title={list.title}
+          lineIds={lines.map((l) => l.id)}
+          onDone={(deleted) => (deleted ? route('/pick', true) : setEditing(false))}
+        />
+      )}
       {resolved.length > 0 && (
         <div class="row">
           <div class="progress grow"><div style={{ width: `${(pulled.length / resolved.length) * 100}%` }} /></div>
@@ -239,16 +258,43 @@ export function PickListDetailPage() {
         </>
       )}
 
-      <button
-        class="btn danger block"
-        style={{ marginTop: '24px' }}
-        onClick={async () => {
-          if (!confirm('Delete this pick list?')) return;
-          await commit('Delete pick list', [...lines.map((l) => deleteOp('pick_list_lines', l.id)), deleteOp('pick_lists', list.id)]);
-          route('/pick', true);
-        }}
-      >Delete pick list</button>
     </Page>
+  );
+}
+
+function EditPickList(props: {
+  id: number; section: string; page: string | null; title: string | null; lineIds: number[]; onDone: (deleted: boolean) => void;
+}) {
+  const [section, setSection] = useState(props.section);
+  const [page, setPage] = useState(props.page ?? '');
+  const [title, setTitle] = useState(props.title ?? '');
+  return (
+    <div class="card stack">
+      <div class="row">
+        <label class="field grow"><span>Page</span><input class="input" value={page} placeholder="10-27" onInput={(e) => setPage((e.target as HTMLInputElement).value)} /></label>
+        <label class="field grow"><span>Section</span><input class="input" value={section} placeholder="10" onInput={(e) => setSection((e.target as HTMLInputElement).value)} /></label>
+      </div>
+      <label class="field"><span>Title</span><input class="input" value={title} placeholder="Aft deck" onInput={(e) => setTitle((e.target as HTMLInputElement).value)} /></label>
+      <div class="row">
+        <button
+          class="btn primary"
+          disabled={!section.trim() || !title.trim()}
+          onClick={async () => {
+            await commit('Edit pick list', [updateOp('pick_lists', props.id, { section: section.trim(), page: page.trim() || null, title: title.trim() })]);
+            props.onDone(false);
+          }}
+        >Save</button>
+        <span class="grow" />
+        <button
+          class="btn danger"
+          onClick={async () => {
+            if (!confirm(`Delete pick list ${props.page ?? props.section}? This doesn't change your inventory.`)) return;
+            await commit('Delete pick list', [...props.lineIds.map((id) => deleteOp('pick_list_lines', id)), deleteOp('pick_lists', props.id)]);
+            props.onDone(true);
+          }}
+        >Delete pick list</button>
+      </div>
+    </div>
   );
 }
 

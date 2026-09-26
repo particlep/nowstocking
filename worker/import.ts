@@ -100,14 +100,16 @@ export async function readPage(env: Env, imageKey: string, page: number, kind: I
 
 // ---- Jobs ----
 
-export async function createJob(db: D1Database, user: string, pageCount: number, kind: ImportKind = 'packing_list'): Promise<string> {
+export async function createJob(
+  db: D1Database, user: string, pageCount: number, kind: ImportKind = 'packing_list', title: string | null = null,
+): Promise<string> {
   if (!Number.isInteger(pageCount) || pageCount < 1 || pageCount > 40) throw new ImportError('page_count must be 1-40', 400);
   if (kind !== 'packing_list' && kind !== 'instructions') throw new ImportError('unknown kind', 400);
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   await db.batch([
-    db.prepare('INSERT INTO import_jobs (id, kind, status, page_count, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .bind(id, kind, 'uploading', pageCount, user, now, now),
+    db.prepare('INSERT INTO import_jobs (id, kind, title, status, page_count, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(id, kind, title?.trim().slice(0, 200) || null, 'uploading', pageCount, user, now, now),
     db.prepare(
       `INSERT INTO import_pages (job_id, page, status, updated_at)
        SELECT ?, value, 'waiting', ? FROM json_each(?)`,
@@ -168,7 +170,7 @@ export async function getJob(db: D1Database, jobId: string): Promise<ImportJob> 
 
 export async function listJobs(db: D1Database, kind: ImportKind): Promise<ImportJobSummary[]> {
   const { results } = await db.prepare(
-    `SELECT j.id, j.kind, j.status, j.page_count, j.created_at,
+    `SELECT j.id, j.kind, j.title, j.status, j.page_count, j.created_at,
             SUM(p.status = 'done') AS pages_done, SUM(p.status = 'failed') AS pages_failed,
             (SELECT json_extract(p2.result, '$.kit_name') FROM import_pages p2
               WHERE p2.job_id = j.id AND json_extract(p2.result, '$.kit_name') IS NOT NULL ORDER BY p2.page LIMIT 1) AS kit_name,

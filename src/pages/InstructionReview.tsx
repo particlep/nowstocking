@@ -107,7 +107,7 @@ export function InstructionReviewPage() {
       setMeta({
         section: results.find((r) => r.section)?.section ?? labels[0]?.split('-')[0] ?? '',
         page: labels.length > 1 ? `${labels[0]}–${labels[labels.length - 1]}` : labels[0] ?? '',
-        title: results.find((r) => r.title)?.title ?? '',
+        title: job.title ?? results.find((r) => r.title)?.title ?? '',
       });
     }
   }, [job]);
@@ -133,7 +133,7 @@ export function InstructionReviewPage() {
     const ops: Op[] = [];
     let listId = existing?.id;
     if (!intoExisting || !existing) {
-      const pl = insertOp('pick_lists', { section: meta.section.trim() || meta.page.split('-')[0] || '?', page: meta.page.trim() || null, title: meta.title.trim() || null });
+      const pl = insertOp('pick_lists', { section: meta.section.trim() || meta.page.split('-')[0] || '?', page: meta.page.trim() || null, title: meta.title.trim() });
       ops.push(pl);
       listId = pl.id;
     }
@@ -167,7 +167,7 @@ export function InstructionReviewPage() {
       title="New pick list"
       bottom={!reading && rows.length > 0 && job.status !== 'committed' ? (
         <>
-          <button class="btn primary lg block" disabled={busy || !chosen.length || !meta?.section.trim() && !meta?.page.trim()} onClick={() => create(false)}>
+          <button class="btn primary lg block" disabled={busy || !chosen.length || !meta?.title.trim() || (!meta?.section.trim() && !meta?.page.trim())} onClick={() => create(false)}>
             Create pick list · {chosen.length} part{chosen.length === 1 ? '' : 's'}
           </button>
           {existing && (
@@ -194,6 +194,17 @@ export function InstructionReviewPage() {
         {failed.map((p) => <div class="small" style={{ color: 'var(--bad)' }}>Photo {p.page}: {p.error}</div>)}
         {failed.length > 0 && <button class="btn small" onClick={retry}>Retry</button>}
       </section>
+      {job.status !== 'committed' && !reading && (
+        <button
+          class="btn small danger"
+          style={{ alignSelf: 'flex-start' }}
+          onClick={async () => {
+            if (!confirm('Discard these photos without making a pick list?')) return;
+            await api(`/api/import/jobs/${id}`, { method: 'DELETE' });
+            route('/pick', true);
+          }}
+        >Discard photos</button>
+      )}
 
       {meta && (
         <section class="card stack">
@@ -202,6 +213,7 @@ export function InstructionReviewPage() {
             <label class="field"><span>Section</span><input class="input" value={meta.section} placeholder="10" onInput={(e) => setMeta({ ...meta, section: (e.target as HTMLInputElement).value })} /></label>
           </div>
           <label class="field"><span>Title</span><input class="input" value={meta.title} placeholder="Aft deck" onInput={(e) => setMeta({ ...meta, title: (e.target as HTMLInputElement).value })} /></label>
+          {!meta.title.trim() && <p class="small" style={{ margin: 0, color: 'var(--bad)' }}>A title is required.</p>}
           {existing && <p class="meta" style={{ margin: 0 }}>You already have a pick list for {existing.page}. You can add these parts to it instead.</p>}
         </section>
       )}
