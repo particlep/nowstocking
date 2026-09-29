@@ -113,7 +113,7 @@ All of these are `vars` in `wrangler.jsonc`:
 
 Every Claude call records its tokens and cost, priced in `worker/aiBudget.ts`. Set the `OPERATOR_EMAILS` secret (a
 comma-separated list) to give those people an Admin screen in More. It shows spend per account and has controls to
-raise an allowance or turn AI off. Those people also get an email when an account uses up its allowance, and when total
+raise an allowance or turn AI off. Those people also get an email when someone signs up, when an account uses up its allowance, and when total
 spend reaches 80% and 100% of the cap. Set a spend limit in the Anthropic console too, as a hard backstop.
 
 With Turnstile on, also set the widget's secret: `npx wrangler secret put TURNSTILE_SECRET`. The Worker checks every

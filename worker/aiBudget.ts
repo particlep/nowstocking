@@ -103,6 +103,15 @@ async function alertOnce(env: Env, key: string, subject: string, text: string) {
   }
 }
 
+/** Tell the operators someone new signed in for the first time. */
+export async function alertSignup(env: Env, userId: string, email: string, workshops: string[]) {
+  const users = await env.DB.prepare('SELECT COUNT(*) AS n FROM users').first<{ n: number }>();
+  await alertOnce(env, `signup:${userId}`, `New sign-up: ${email}`,
+    `${email} just signed up for NowStocking.\n\n` +
+    `Workshop: ${workshops.join(', ') || 'none yet'}\n` +
+    `Users in total: ${users?.n ?? '?'}`);
+}
+
 /** Record one Claude call, then alert the operator if it crossed a limit. */
 export async function recordAiUsage(env: Env, u: {
   accountId: string; warehouseId: string; jobId: string; page: number; kind: string; model: string; usage: TokenUsage;

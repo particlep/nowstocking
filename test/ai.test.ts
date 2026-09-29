@@ -89,6 +89,16 @@ describe('AI allowance', () => {
   });
 });
 
+describe('sign-up alerts', () => {
+  it('tells the operators once, the first time someone signs in', async () => {
+    const user = email('new');
+    const me = (await call<MeResponse>(user, '/api/me')).body;
+    await call<MeResponse>(user, '/api/me');
+    const alerts = await env.DB.prepare('SELECT key FROM alerts WHERE key = ?').bind(`signup:${me.user.id}`).all();
+    expect(alerts.results).toHaveLength(1);
+  });
+});
+
 describe('operator admin', () => {
   it('is invisible to everyone else', async () => {
     const a = await newAccount();

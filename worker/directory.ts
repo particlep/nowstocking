@@ -11,12 +11,14 @@ export function newWarehouseId(): string {
   return Array.from(bytes, (b) => alphabet[b % 36]).join('');
 }
 
-async function upsertUser(db: D1Database, email: string): Promise<string> {
+/** The user's id, and whether this call created them (the returned id is the one we just made up). */
+async function upsertUser(db: D1Database, email: string): Promise<{ id: string; created: boolean }> {
+  const id = crypto.randomUUID();
   const row = await db
     .prepare('INSERT INTO users (id, email, created_at) VALUES (?, ?, ?) ON CONFLICT(email) DO UPDATE SET email = email RETURNING id')
-    .bind(crypto.randomUUID(), email.toLowerCase(), now())
+    .bind(id, email.toLowerCase(), now())
     .first<{ id: string }>();
-  return row!.id;
+  return { id: row!.id, created: row!.id === id };
 }
 
 async function createAccount(db: D1Database, userId: string, name: string, role: Role = 'owner') {
@@ -33,25 +35,26 @@ async function createAccount(db: D1Database, userId: string, name: string, role:
  * Make sure the user exists and belongs somewhere. Pending invites for their email are accepted first.
  * - single (self-hosted): everyone who gets past sign-in joins the one account. The first person is its owner.
  * - open (hosted): a new user gets their own account and first warehouse.
+ * `created` is true the first time this email signs in.
  */
-export async function provision(db: D1Database, email: string, mode: 'single' | 'open'): Promise<string> {
-  const userId = await upsertUser(db, email);
+export async function provision(db: D1Database, email: string, mode: 'single' | 'open'): Promise<{ userId: string; created: boolean }> {
+  const { id: userId, created } = await upsertUser(db, email);
   await acceptInvites(db, userId, email.toLowerCase());
   const has = await db.prepare('SELECT 1 FROM memberships WHERE user_id = ? LIMIT 1').bind(userId).first();
-  if (has) return userId;
+  if (has) return { userId, created };
 
   if (mode === 'single') {
     const account = await db.prepare('SELECT id FROM accounts ORDER BY created_at LIMIT 1').first<{ id: string }>();
     if (account) {
       await db.prepare('INSERT OR IGNORE INTO memberships (account_id, user_id, role, created_at) VALUES (?, ?, ?, ?)')
         .bind(account.id, userId, 'member', now()).run();
-      return userId;
+      return { userId, created };
     }
     await createAccount(db, userId, 'Workshop');
-    return userId;
+    return { userId, created };
   }
   await createAccount(db, userId, `${email.split('@')[0]}'s workshop`);
-  return userId;
+  return { userId, created };
 }
 
 export async function describe(db: D1Database, userId: string, email: string): Promise<MeResponse> {

@@ -14,7 +14,7 @@ import { cancelInvite, invite, listMembers, MemberError, removeMember, renameAcc
 import { AuthError, EMAIL_RE, endSession, SESSION_COOKIE, SESSION_MAX_AGE, startLogin, verifyLogin } from './session';
 import { turnstileSitekey, verifyTurnstile } from './turnstile';
 import { getUsage, recordPhotoPages } from './usage';
-import { aiStatus, assertAiAllowed, operatorEmails } from './aiBudget';
+import { aiStatus, alertSignup, assertAiAllowed, operatorEmails } from './aiBudget';
 import { admin } from './admin';
 
 const app = new Hono<AppEnv>().basePath('/api');
@@ -91,11 +91,21 @@ app.post('/auth/logout', async (c) => {
 
 // ---- Directory ----
 
+/** Finish work after the response (e.g. an email), or inline where there's no execution context, as in tests. */
+async function inBackground(c: Context<AppEnv>, work: Promise<unknown>) {
+  let ctx: { waitUntil(p: Promise<unknown>): void } | undefined;
+  try { ctx = c.executionCtx; } catch { /* none */ }
+  if (ctx) ctx.waitUntil(work);
+  else await work;
+}
+
 /** Who am I, and which warehouses can I open? Also signs new users up. */
 app.get('/me', async (c) => {
   const mode = (c.env.SIGNUP_MODE as string) === 'open' ? 'open' : 'single';
-  const userId = await provision(c.env.DB, c.get('email'), mode);
-  return c.json({ ...(await describe(c.env.DB, userId, c.get('email'))), operator: operatorEmails(c.env).includes(c.get('email')) });
+  const { userId, created } = await provision(c.env.DB, c.get('email'), mode);
+  const me = await describe(c.env.DB, userId, c.get('email'));
+  if (created) await inBackground(c, alertSignup(c.env, userId, c.get('email'), me.accounts.map((a) => a.name)));
+  return c.json({ ...me, operator: operatorEmails(c.env).includes(c.get('email')) });
 });
 
 /** Delete my account. The body must say { "confirm": "DELETE" }. */
