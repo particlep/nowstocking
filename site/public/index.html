@@ -129,8 +129,9 @@ h2 { font-family: var(--display); font-weight: 700; font-size: clamp(38px, 5vw, 
 .steps li::before { content: counter(step, decimal-leading-zero); display: block; font-family: var(--display); font-weight: 700; font-size: 40px; line-height: 1; color: var(--accent); margin-bottom: 12px; }
 .steps h3, .features h3 { margin: 0 0 8px; font-size: 19px; }
 .steps p, .features p { margin: 0; color: #3a4556; font-size: 16px; }
-@media (max-width: 960px) { .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 560px) { .steps { grid-template-columns: 1fr; } }
+.steps.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 960px) { .steps, .steps.three { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .steps, .steps.three { grid-template-columns: 1fr; } }
 
 .features { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px 36px; }
 .features > div { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 14px; align-items: start; }
@@ -171,6 +172,7 @@ footer .grow { flex: 1; min-width: 240px; }
     <nav aria-label="Main">
       <a class="hide-sm" href="#how">How it works</a>
       <a class="hide-sm" href="#features">Features</a>
+      <a class="hide-sm" href="#install">Install</a>
       <a href="https://github.com/particlep/nowstocking">GitHub</a>
       <a href="https://app.nowstocking.com/">Sign in</a>
     </nav>
@@ -280,7 +282,31 @@ footer .grow { flex: 1; min-width: 240px; }
     </div>
   </section>
 
-  <section aria-labelledby="for-title" style="padding-bottom: 0;">
+  <section id="install" aria-labelledby="install-title">
+    <div class="wrap">
+      <h2 id="install-title">Install it on your phone</h2>
+      <p class="section-lede">
+        Nothing to download from the App Store. NowStocking installs from the browser, then opens full-screen like any
+        other app. Installing it also keeps the browser from clearing your offline copy.
+      </p>
+      <ol class="steps three">
+        <li>
+          <h3>Open it</h3>
+          <p>Go to app.nowstocking.com on your phone and sign in with your email. On iPhone, use Safari.</p>
+        </li>
+        <li>
+          <h3>Add to Home Screen</h3>
+          <p>On iPhone, tap Share, then Add to Home Screen. On Android, open Chrome's menu and tap Install app.</p>
+        </li>
+        <li>
+          <h3>Open it from the icon</h3>
+          <p>It keeps a full copy of your inventory on the phone, works with no signal, and updates itself.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section aria-labelledby="for-title" style="padding-top: 0; padding-bottom: 0;">
     <div class="wrap">
       <h2 id="for-title">For anything that comes in a crate</h2>
       <p class="section-lede" style="margin-bottom: 20px;">
@@ -308,7 +334,7 @@ footer .grow { flex: 1; min-width: 240px; }
         </div>
         <div>
           <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10"/></svg></span>
-          <div><h3>Scan to see what's inside</h3><p>Every bin and shelf label is a QR code. Scan it in the app, or with the phone's camera.</p></div>
+          <div><h3>Scan to see what's inside</h3><p>Every bin and shelf label is a QR code. Scan it in the app to jump straight to that bin. The phone's camera works too, and opens the bin in the browser.</p></div>
         </div>
         <div>
           <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg></span>
@@ -332,11 +358,12 @@ footer .grow { flex: 1; min-width: 240px; }
         <h2 id="host-title">Use ours, or run your own</h2>
         <p class="section-lede" style="margin-bottom: 24px;">
           The app at app.nowstocking.com is the same open-source code. Sign in with your email, invite your build partner,
-          and read 20 photo pages a month. Or deploy it to your own Cloudflare account, where your data never touches ours:
+          and read about 30 photo pages free, up to 20 a month. Or deploy it to your own Cloudflare account, where your data never touches ours:
         </p>
         <ul class="stack-list">
           <li><strong>Workers</strong><span>The app and its API, on your own domain</span></li>
-          <li><strong>D1</strong><span>The inventory database</span></li>
+          <li><strong>Durable Objects</strong><span>The inventory, in its own database for each warehouse</span></li>
+          <li><strong>D1</strong><span>Users, accounts and who can open which warehouse</span></li>
           <li><strong>R2 + Workflows</strong><span>Photos, and reading them in the background</span></li>
           <li><strong>Access</strong><span>Email sign-in. Add a build partner without touching code</span></li>
           <li><strong>Email Sending</strong><span>Label PDFs sent straight to your inbox</span></li>
@@ -346,7 +373,7 @@ footer .grow { flex: 1; min-width: 240px; }
         <h3>Set it up in an afternoon</h3>
         <p>
           Fork the repo, create the database and bucket, put Access in front of your domain, and deploy. Photo reading uses
-          the Claude API with your own key, so Anthropic bills you per page read (well under a dollar a page).
+          the Claude API with your own key, so Anthropic bills you per page read (typically 10 to 30 cents a page).
         </p>
         <p>The README walks through every step, starting with <code>npm install</code>.</p>
         <a class="btn" href="https://github.com/particlep/nowstocking#self-hosting">Read the setup guide</a>

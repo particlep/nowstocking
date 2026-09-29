@@ -1,3 +1,4 @@
+import { useState } from 'preact/hooks';
 import { LocationProvider, Route, Router, useLocation } from 'preact-iso';
 import { hidesTabs, TabBar } from './components/chrome';
 import { PhotoViewer } from './components/PhotoViewer';
@@ -37,6 +38,37 @@ function SignInBanner() {
   );
 }
 
+const INSTALL_HINT_KEY = 'ns-install-hint-dismissed';
+
+/** On an iPhone or iPad in the browser, not the installed app. Safari never offers to install by itself. */
+function inIosBrowser(): boolean {
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const installed = (navigator as { standalone?: boolean }).standalone === true || matchMedia('(display-mode: standalone)').matches;
+  return ios && !installed;
+}
+
+function installHintDismissed(): boolean {
+  try { return localStorage.getItem(INSTALL_HINT_KEY) === '1'; } catch { return false; }
+}
+
+/** Tells iPhone users how to install the app, until they do or dismiss it. */
+function InstallHint() {
+  const [hidden, setHidden] = useState(() => !inIosBrowser() || installHintDismissed());
+  if (hidden || syncState.value === 'signin') return null;
+  const dismiss = () => {
+    try { localStorage.setItem(INSTALL_HINT_KEY, '1'); } catch { /* shown again next time */ }
+    setHidden(true);
+  };
+  return (
+    <div class="banner row" style={{ margin: 'calc(env(safe-area-inset-top) + 8px) 16px 0', alignItems: 'center' }}>
+      <span class="grow small">
+        <strong>Install the app:</strong> tap Share, then Add to Home Screen. It opens full-screen, and Safari won't clear your offline copy.
+      </span>
+      <button class="btn small" onClick={dismiss}>Not now</button>
+    </div>
+  );
+}
+
 function Shell({ children }: { children: preact.ComponentChildren }) {
   const { path } = useLocation();
   const show = warehouseId.value || path === '/signin';
@@ -64,6 +96,7 @@ export function App() {
       <Shell>
         <PullToRefresh />
         <SignInBanner />
+        <InstallHint />
         <Router>
           <Route path="/" component={SearchPage} />
           <Route path="/scan" component={ScanPage} />

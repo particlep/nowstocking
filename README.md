@@ -8,7 +8,7 @@
 
 <p align="center">
   A phone app for keeping track of every part in a kit build: where it's stored, whether it arrived, and how many are left.<br>
-  It runs entirely on your own Cloudflare account.
+  Use it at app.nowstocking.com, or run it on your own Cloudflare account.
 </p>
 
 <p align="center">
@@ -39,13 +39,14 @@ machines and furniture.
 - **Pick lists from the plans.** Photograph an instruction page and get every part it calls for, matched to where it's stored.
 - **Receiving, consumed and left, moves and splits, CSV export, emailed label PDFs.**
 - **Works offline.** Everything lives on the phone. Edits queue up and sync when you're back online.
+- **Installs from the browser.** No App Store: on iPhone, open it in Safari and tap Share → Add to Home Screen. It then opens full-screen like any other app.
 
 ## How it's built
 
 ```
- iPhone (installed PWA)                          Cloudflare (your account)
+ iPhone (installed PWA)                          Cloudflare
  ┌────────────────────────────┐   HTTPS    ┌───────────────────────────────────────────┐
- │ Preact + preact-iso        │ ─────────▶ │ Access (email one-time PIN)               │
+ │ Preact + preact-iso        │ ─────────▶ │ Sign-in: Access, or an emailed code       │
  │ IndexedDB: full copy       │            │   ▼                                       │
  │ Outbox of queued edits     │ ◀───────── │ Worker (Hono) + static assets             │
  │ Search, QR scan, PDFs      │   sync     │   ├─ Durable Object per warehouse:        │
@@ -53,7 +54,7 @@ machines and furniture.
                                            │   ├─ D1: users, accounts, warehouses      │
                                            │   ├─ R2: packing list / plans photos      │
                                            │   ├─ Workflows: read photos with Claude   │
-                                           │   └─ Email Sending: label PDFs            │
+                                           │   └─ Email: codes, invites, label PDFs    │
                                            └───────────────────────────────────────────┘
 ```
 
@@ -64,8 +65,8 @@ machines and furniture.
 | Data | A Durable Object (SQLite) per warehouse. D1 for the directory of users and accounts. R2 for photos |
 | Background jobs | Cloudflare Workflows. Each photo is its own retried step |
 | Photo reading | Claude API (`claude-opus-5`) with structured output |
-| Auth | Cloudflare Access. The Worker verifies the Access JWT on every API call |
-| Email | Cloudflare Email Sending (`send_email` binding) |
+| Auth | Self-hosted: Cloudflare Access, and the Worker verifies the Access JWT on every API call. Hosted: a one-time code sent by email, then a session cookie |
+| Email | Cloudflare Email Sending (`send_email` binding): sign-in codes, invites, label PDFs and operator alerts |
 | Labels | jsPDF and qrcode, generated on the phone |
 | Scanning | qr-scanner (Safari has no BarcodeDetector) |
 
@@ -137,7 +138,9 @@ docs/SPEC.md    The product spec and decisions
 ## Hosted or self-hosted
 
 **app.nowstocking.com** runs this repo's `hosted` environment (`wrangler.jsonc → env.hosted`). It uses email sign-in, open
-sign-up and a monthly photo limit. Anyone can sign up with an email address.
+sign-up and a monthly photo limit. Anyone can sign up with an email address. Each workshop gets a free photo-reading
+allowance of $5 (`AI_ALLOWANCE_USD`, about 30 pages) and up to 20 pages a month (`PHOTO_PAGES_PER_MONTH`). All
+accounts together are capped at $50 a month (`AI_MONTHLY_CAP_USD`).
 
 To run your own copy, follow the steps below. Your data stays in your Cloudflare account, behind your Access login.
 
@@ -221,7 +224,8 @@ app.nowstocking.com and the landing page. To make it deploy your own copy from y
 ### Costs
 
 Hosting fits in the Workers Paid plan's included usage at hobby scale: a few thousand rows and a few hundred photos.
-Claude usage is billed by Anthropic per photo read. The import model is the `IMPORT_MODEL` setting in `wrangler.jsonc`.
+Claude usage is billed by Anthropic per photo read, typically 10 to 30 cents a packing-list page with the default
+model. The import model is the `IMPORT_MODEL` setting in `wrangler.jsonc`.
 
 ## Local development
 
@@ -261,6 +265,13 @@ with the D1 migrations applied to a fresh local database:
   - Deletes sync as tombstones, large imports apply in one request, the change history records moves, and CSV export works.
 - **`test/shared.test.ts`**: inventory rules. Effective location (bag inheritance, overrides, splits), remaining counts, and CSV.
 - **`test/search.test.ts`**: search ranking, and matching plans part numbers to inventory.
+- **`test/ai.test.ts`**: Claude cost tracking. Calls are priced from token counts, an account is cut off when its
+  allowance is used up, everyone pauses at the monthly cap, operators are alerted once, and the Admin screen is
+  hidden from everyone else.
+- **`test/delete.test.ts`**: deleting an account. It needs confirmation, erases a solo account's warehouses and photos,
+  removes the user's email from shared accounts' history, and won't leave a shared account without an owner.
+- **`test/turnstile.test.ts`**: the sign-in bot check. A code is sent only when the check passes for the right action
+  and hostname, sign-in fails closed when Cloudflare can't be reached, and the check stays off with no sitekey.
 
 CI runs the type check and tests on every push and pull request, and deploys only when they pass.
 
