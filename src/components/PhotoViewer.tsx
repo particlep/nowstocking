@@ -6,10 +6,17 @@ import { CloseIcon } from './icons';
  * Full-screen photo viewer with pinch, pan and double-tap zoom. Photos open here instead of
  * as a raw URL, which in the installed iOS app replaces the app with no way back.
  */
-export const viewerPhoto = signal<{ src: string; alt: string } | null>(null);
+export const viewerPhoto = signal<{ src: string; alt: string; line?: PhotoLine } | null>(null);
 
-export function openPhoto(src: string, alt: string) {
-  viewerPhoto.value = { src, alt };
+/** The import line being checked, shown over the photo so you know what to look for. */
+export interface PhotoLine {
+  code: string;
+  detail?: string;
+  note?: string;
+}
+
+export function openPhoto(src: string, alt: string, line?: PhotoLine) {
+  viewerPhoto.value = { src, alt, line };
 }
 
 const MAX = 6;
@@ -117,6 +124,19 @@ export function PhotoViewer() {
           onClick={() => (viewerPhoto.value = null)}
         ><CloseIcon />Close</button>
       </div>
+      {photo.line && (
+        <div style={{
+          position: 'absolute', left: '12px', right: '12px', top: 'calc(env(safe-area-inset-top) + 68px)',
+          maxWidth: '560px', margin: '0 auto', padding: '10px 14px', borderRadius: '14px',
+          background: 'rgb(255 255 255 / 0.94)', color: 'var(--navy)', boxShadow: '0 6px 20px rgb(0 0 0 / 0.35)', pointerEvents: 'none',
+        }}>
+          <div class="mono" style={{ fontWeight: 600, fontSize: '17px' }}>{photo.line.code || 'No stock code'}</div>
+          {photo.line.detail && <div style={{ fontSize: '14px', color: 'var(--muted)' }}>{photo.line.detail}</div>}
+          {photo.line.note && (
+            <div style={{ marginTop: '6px', fontSize: '14px', fontWeight: 500, color: 'var(--warn-fg)' }}>⚑ {photo.line.note}</div>
+          )}
+        </div>
+      )}
       <div style={{ position: 'absolute', left: 0, right: 0, bottom: 'calc(env(safe-area-inset-bottom) + 16px)', textAlign: 'center', color: 'rgb(255 255 255 / 0.7)', fontSize: '13px' }}>
         Pinch or double-tap to zoom
       </div>

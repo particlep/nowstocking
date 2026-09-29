@@ -91,7 +91,11 @@ export function ImportRowPage() {
       {imageKeys[r.page] ? (
         <button
           type="button"
-          onClick={() => openPhoto(wpath(`/import/image/${imageKeys[r.page]}`), `Packing list page ${r.page}`)}
+          onClick={() => openPhoto(wpath(`/import/image/${imageKeys[r.page]}`), `Packing list page ${r.page}`, {
+            code: r.stock_code,
+            detail: [r.description, `${r.qty} ${r.unit === 'lb' ? 'lb' : 'each'}`, r.vans_bin && `bin ${r.vans_bin}`].filter(Boolean).join(' · '),
+            note: needsReview(r) ? (r.note ?? 'Flagged as hard to read') : undefined,
+          })}
           aria-label={`Open page ${r.page} photo full size`}
           style={{ display: 'block', position: 'relative', width: '100%', padding: 0, border: 0, background: 'none' }}
         >
