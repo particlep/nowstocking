@@ -41,6 +41,9 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Full history: the app's version number is the commit count (vite.config.ts).
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version: 22

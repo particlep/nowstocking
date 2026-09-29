@@ -1,11 +1,22 @@
 import { cloudflare } from '@cloudflare/vite-plugin';
 import preact from '@preact/preset-vite';
+import { execSync } from 'node:child_process';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// The number of commits on the current branch, so each commit gets the next version number. Needs the full git
+// history (CI checks out with fetch-depth: 0); outside a git checkout it falls back to "dev".
+function commitCount(): string {
+  try {
+    return execSync('git rev-list --count HEAD', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch {
+    return 'dev';
+  }
+}
+
 export default defineConfig({
   // Shown on the sign-in screen and in More, so we can tell which version a phone is running.
-  define: { __APP_VERSION__: JSON.stringify(new Date().toISOString().slice(0, 16).replace('T', ' ')) },
+  define: { __APP_VERSION__: JSON.stringify(commitCount()) },
   plugins: [
     preact(),
     cloudflare(),
