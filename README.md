@@ -208,14 +208,15 @@ Open your hostname in Safari on the phone, sign in, then **Share → Add to Home
 
 ### 7. Deploy on push (optional)
 
-`.github/workflows/ci.yml` runs the type check and tests on every push and pull request. On `main`, it then applies D1
-migrations and deploys. To make it deploy your fork:
+`.github/workflows/ci.yml` runs the type check and tests on every push and pull request. On `main`, it then deploys
+app.nowstocking.com and the landing page. To make it deploy your own copy from your fork:
 
 1. Change `github.repository == 'particlep/nowstocking'` in the deploy job to your repo.
 2. Add two repository secrets:
    - `CLOUDFLARE_ACCOUNT_ID`
    - `CLOUDFLARE_API_TOKEN`: create it from the *Edit Cloudflare Workers* template, then add **D1: Edit**.
-3. Remove the "Deploy landing page" step. It publishes `site/` to nowstocking.com.
+3. Replace the deploy job's steps after `npm ci` with `npm run build`,
+   `npx wrangler d1 migrations apply inventory --remote` and `npx wrangler deploy`.
 
 ### Costs
 
