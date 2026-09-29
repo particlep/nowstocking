@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks';
 import { LocationProvider, Route, Router, useLocation } from 'preact-iso';
-import { hidesTabs, TabBar } from './components/chrome';
+import { hidesTabs, SideNav, TabBar } from './components/chrome';
 import { PhotoViewer } from './components/PhotoViewer';
 import { PullToRefresh } from './components/PullToRefresh';
 import { syncError, syncState } from './data/store';
@@ -124,6 +124,7 @@ export function App() {
           <Route default component={SearchPage} />
         </Router>
         <TabBar />
+        <SideNav />
         <PhotoViewer />
       </Shell>
     </LocationProvider>

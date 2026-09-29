@@ -1,25 +1,14 @@
-import { Page } from '../components/chrome';
+import { moreLinks, Page } from '../components/chrome';
 import { ChevronIcon, LogoMark } from '../components/icons';
 import { me } from '../data/store';
-import { identity } from '../data/workspace';
 import { CurrentWarehouseCard } from './Warehouses';
-
-const LINKS = [
-  { href: '/receive', title: 'Receiving', desc: 'Check a kit against its packing list' },
-  { href: '/import', title: 'Import packing list', desc: 'Read packing list photos into a kit' },
-  { href: '/locations', title: 'Locations', desc: 'Bins, shelves, crates' },
-  { href: '/labels', title: 'Labels', desc: 'Print QR labels on Avery 5160 / 5163' },
-  { href: '/item/new', title: 'Add a part', desc: "For parts that aren't on a packing list" },
-  { href: '/members', title: 'Members', desc: 'Invite people to your workshop' },
-  { href: '/settings', title: 'Settings', desc: 'Sync, usage, CSV export, sign out' },
-];
 
 export function MorePage() {
   return (
     <Page title="More">
       <CurrentWarehouseCard />
       <div class="list">
-        {(identity.value?.operator ? [{ href: '/admin', title: 'Admin', desc: 'AI usage across all accounts' }, ...LINKS] : LINKS).map((l) => (
+        {moreLinks().map((l) => (
           <a class="list-item row" href={l.href}>
             <span class="grow">
               <span style={{ display: 'block', fontWeight: 600 }}>{l.title}</span>

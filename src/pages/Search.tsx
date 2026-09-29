@@ -79,8 +79,8 @@ export function SearchPage() {
           )}
           {cat.items.size === 0 && (
             <div class="card stack">
-              <strong>No parts yet</strong>
-              <span class="muted">Import a packing list to get started, or add parts by hand.</span>
+              <strong style={{ display: 'block' }}>No parts yet</strong>
+              <span class="muted" style={{ display: 'block' }}>Import a packing list to get started, or add parts by hand.</span>
               <div class="row wrap">
                 <a class="btn primary" href="/import">Import packing list</a>
                 <a class="btn" href="/item/new">Add a part</a>
