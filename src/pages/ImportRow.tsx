@@ -49,10 +49,21 @@ export function ImportRowPage() {
   const focusY = pageRows.length > 1 ? 12 + (posInPage / (pageRows.length - 1)) * 76 : 50;
   const lastLine = flaggedLeft <= (needsReview(r) ? 1 : 0);
 
+  // On a flagged line, the arrows step through the flagged lines only. Otherwise they step through every line.
+  const flaggedMode = needsReview(r);
+  const flagged = d.rows.filter(needsReview);
+  const flaggedPos = flagged.findIndex((x) => x.key === r.key);
+  const prev = flaggedMode ? flagged[flaggedPos - 1] : d.rows[idx - 1];
+  const next = flaggedMode ? flagged[flaggedPos + 1] : d.rows[idx + 1];
+
   return (
     <Page
       back="All lines"
-      actions={<span class="meta" style={{ fontSize: '14px' }}>Line {idx + 1} of {d.rows.length}</span>}
+      actions={
+        <span class="meta" style={{ fontSize: '14px' }}>
+          {flaggedMode ? `Flagged ${flaggedPos + 1} of ${flagged.length}` : `Line ${idx + 1} of ${d.rows.length}`}
+        </span>
+      }
       bottom={
         <>
           <button
@@ -61,10 +72,10 @@ export function ImportRowPage() {
               await updateRow(r.key, { reviewed: true });
               go(nextFlagged?.key !== r.key ? nextFlagged?.key : undefined);
             }}
-          ><CheckIcon />{lastLine ? 'Looks right · back to list' : 'Looks right · next flagged'}</button>
+          ><CheckIcon />{lastLine ? 'Done · back to list' : 'Done · next flagged'}</button>
           <div class="row">
-            <button class="btn grow" disabled={idx === 0} onClick={() => go(d.rows[idx - 1]?.key)}>‹ Previous</button>
-            <button class="btn grow" disabled={idx === d.rows.length - 1} onClick={() => go(d.rows[idx + 1]?.key)}>Next ›</button>
+            <button class="btn grow" disabled={!prev} onClick={() => go(prev?.key)}>{flaggedMode ? '‹ Previous flagged' : '‹ Previous line'}</button>
+            <button class="btn grow" disabled={!next} onClick={() => go(next?.key)}>{flaggedMode ? 'Next flagged ›' : 'Next line ›'}</button>
           </div>
         </>
       }
@@ -75,6 +86,7 @@ export function ImportRowPage() {
           <span style={{ fontWeight: 500 }}>{r.reviewed ? 'Reviewed' : r.note ?? 'Flagged as hard to read'}{r.reviewed && r.note ? ` · ${r.note}` : ''}</span>
         </div>
       )}
+      {flaggedMode && <p class="meta" style={{ margin: '6px 4px 0' }}>Check it against the photo. Fix anything that's wrong, then tap Done. Changes save as you type.</p>}
 
       {imageKeys[r.page] ? (
         <button
