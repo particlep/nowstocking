@@ -137,6 +137,23 @@ describe('mutations and sync', () => {
     expect(rows.kits.map((k) => k.code).sort()).toEqual(['EMP', 'MISC']);
   });
 
+  it('lets a deleted location or kit code be used again', async () => {
+    const { user, wid } = await newOwner();
+    const loc = nextId(), kit = nextId();
+    await mutate(user, wid, [mutation('add', [
+      { op: 'insert', table: 'locations', id: loc, fields: { code: 'S1-1C', type: 'shelf' } },
+      { op: 'insert', table: 'kits', id: kit, fields: { code: 'WING', name: 'Wing' } },
+    ])]);
+    await mutate(user, wid, [mutation('delete', [{ op: 'delete', table: 'locations', id: loc }, { op: 'delete', table: 'kits', id: kit }])]);
+    const again = await mutate(user, wid, [mutation('add again', [
+      { op: 'insert', table: 'locations', id: nextId(), fields: { code: 's1-1c', type: 'shelf' } },
+      { op: 'insert', table: 'kits', id: nextId(), fields: { code: 'WING', name: 'Wing' } },
+    ])]);
+    expect(again.body.results[0]).toMatchObject({ status: 'applied' });
+    const live = (await sync(user, wid)).rows.locations.filter((l) => !l.deleted_at).map((l) => l.code);
+    expect(live).toEqual(['S1-1C']);
+  });
+
   it('applies a mutation id at most once', async () => {
     const { user, wid } = await newOwner();
     const s = await seed(user, wid);

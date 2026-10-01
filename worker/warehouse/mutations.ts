@@ -89,6 +89,11 @@ function applyOne(sql: SqlStorage, m: Mutation, planned: Planned[], user: string
     );
 
   for (const p of planned) {
+    // Codes are unique, and deleted rows are kept as tombstones. Move a deleted row's code aside so it can be
+    // used again; nobody sees deleted rows, so the change isn't synced or logged.
+    if ((p.table === 'locations' || p.table === 'kits') && p.fields.code != null) {
+      sql.exec(`UPDATE ${p.table} SET code = code || '~deleted-' || id WHERE code = ? AND deleted_at IS NOT NULL`, p.fields.code);
+    }
     if (p.insert) {
       const cols = Object.keys(p.fields);
       sql.exec(
