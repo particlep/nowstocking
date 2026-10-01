@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCsv, childrenStoredElsewhere, effectiveLocation, formatLocations, itemsAtLocation, remaining, splitMismatch,
 } from '../shared/inventory';
+import { defaultPrefix, describePrefix, gridLocations } from '../shared/locationGrid';
 import { normalizeLocationCode, toSearchKey } from '../shared/normalize';
 import { newId } from '../shared/schema';
 import { placement, sampleCatalog } from './fixtures';
@@ -78,5 +79,33 @@ describe('CSV export', () => {
     expect(csv).toContain('EMP,14 EMP HARDWARE,BAG 1118,part,AN470AD4-5,RIVET (LB),0.11,lb,,,expected,,B03,BAG 1118');
     expect(csv).toContain('EMP,14 EMP HARDWARE,BAG 1118,part,LP4-3,,225,ea,40,185,expected,,B07,');
     expect(csv).toContain('FUSE,,,part,AN470AD4-5,,0.24,lb,,,expected,,S1-B,');
+  });
+});
+
+describe('location grids', () => {
+  it('makes a shelf of numbered rows and lettered columns', () => {
+    const g = gridLocations({ type: 'shelf', prefix: 'S2-', describe: 'Shelf 2', rows: 5, cols: 4, start: 1 });
+    expect(g).toHaveLength(20);
+    expect(g.slice(0, 5).map((l) => l.code)).toEqual(['S2-1A', 'S2-1B', 'S2-1C', 'S2-1D', 'S2-2A']);
+    expect(g[19]).toMatchObject({ code: 'S2-5D', description: 'Shelf 2, 5D' });
+  });
+
+  it('makes padded bins when there are no columns, and can start part way', () => {
+    expect(gridLocations({ type: 'bin', prefix: 'b', describe: '', rows: 3, cols: 1, start: 21 }).map((l) => [l.code, l.description]))
+      .toEqual([['B21', null], ['B22', null], ['B23', null]]);
+    expect(gridLocations({ type: 'bin', prefix: 'B', describe: '', rows: 2, cols: 0, start: 1 }).map((l) => l.code)).toEqual(['B01', 'B02']);
+  });
+
+  it('refuses empty or oversized grids', () => {
+    expect(gridLocations({ type: 'shelf', prefix: 'S1-', describe: '', rows: 0, cols: 4, start: 1 })).toEqual([]);
+    expect(gridLocations({ type: 'bin', prefix: 'B', describe: '', rows: 501, cols: 1, start: 1 })).toEqual([]);
+  });
+
+  it('suggests the next unused unit and a matching description', () => {
+    expect(defaultPrefix('shelf', ['S1-1A', 'S1-1B', 'B01'])).toBe('S2-');
+    expect(defaultPrefix('rack', [])).toBe('RACK-1-');
+    expect(describePrefix('shelf', 'S2-')).toBe('Shelf 2');
+    expect(describePrefix('rack', 'RACK-3-')).toBe('Rack 3');
+    expect(describePrefix('bin', 'B')).toBe('');
   });
 });

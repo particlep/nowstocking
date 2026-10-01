@@ -119,6 +119,13 @@ export async function createLocation(code: string, type: LocationType, descripti
   return op.id;
 }
 
+/** Add several locations as one change, e.g. every slot on a shelf. */
+export async function createLocations(locs: { code: string; type: LocationType; description: string | null }[]) {
+  if (!locs.length) return;
+  const ops = locs.map((l) => insertOp('locations', { code: normalizeLocationCode(l.code), type: l.type, description: l.description }));
+  await commit(`Add ${locs.length} location${locs.length === 1 ? '' : 's'}`, ops);
+}
+
 export function guessLocationType(code: string): LocationType {
   const c = normalizeLocationCode(code);
   if (/^B\d/.test(c)) return 'bin';
