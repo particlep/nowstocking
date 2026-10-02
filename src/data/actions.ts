@@ -97,30 +97,31 @@ export async function setStatus(cat: Catalog, item: Item, status: ItemStatus) {
   const targets = [item, ...(item.item_type === 'part' ? [] : descendants(cat, item))];
   // Marking something received means it all arrived, so a short count from before no longer applies.
   const clears = (t: Item) => status === 'received' && t.qty_received != null;
-  const ops = targets
-    .filter((t) => t.status !== status || clears(t))
-    .map((t) => updateOp('items', t.id, clears(t) ? { status, qty_received: null } : { status }));
+  const changed = targets.filter((t) => t.status !== status || clears(t));
+  const ops = changed.map((t) => updateOp('items', t.id, clears(t) ? { status, qty_received: null } : { status }));
+  ops.push(...kitCheckedOps(cat, item.kit_id, new Map(changed.map((t) => [t.id, status]))));
   await commit(`Mark ${item.stock_code} ${status}`, ops);
+}
+
+/** When the last unchecked line in a kit gets a status, record the date the kit was received. */
+function kitCheckedOps(cat: Catalog, kitId: number, newStatus: Map<number, ItemStatus>): Op[] {
+  const kit = cat.kits.get(kitId);
+  if (!kit || kit.received_at) return [];
+  const items = [...cat.items.values()].filter((i) => i.kit_id === kitId);
+  const unchecked = items.some((i) => (newStatus.get(i.id) ?? i.status) === 'expected');
+  return items.length && !unchecked ? [updateOp('kits', kitId, { received_at: new Date().toISOString() })] : [];
 }
 
 /**
  * Record how many of a part arrived. All of it: received. None: missing. Some: backordered, so the shortfall
  * shows up under Problems on the Receiving screen.
  */
-export async function setReceivedQty(item: Item, n: number) {
+export async function setReceivedQty(cat: Catalog, item: Item, n: number) {
   const status: ItemStatus = n >= item.qty ? 'received' : n <= 0 ? 'missing' : 'backordered';
   await commit(`Received ${n} of ${item.stock_code}`, [
     updateOp('items', item.id, { status, qty_received: n >= item.qty ? null : n }),
+    ...kitCheckedOps(cat, item.kit_id, new Map([[item.id, status]])),
   ]);
-}
-
-export async function markKitReceived(cat: Catalog, kitId: number) {
-  const ops: Op[] = [];
-  for (const it of cat.items.values()) {
-    if (it.kit_id === kitId && it.status === 'expected') ops.push(updateOp('items', it.id, { status: 'received' }));
-  }
-  ops.push(updateOp('kits', kitId, { received_at: new Date().toISOString() }));
-  await commit('Mark kit received', ops);
 }
 
 export async function consume(item: Item, qty: number, pickListId: number | null, note: string | null) {

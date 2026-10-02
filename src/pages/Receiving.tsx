@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks';
 import { useRoute } from 'preact-iso';
 import { fmtQty } from '../../shared/inventory';
+import { toSearchKey } from '../../shared/normalize';
 import { PROBLEM_STATUSES, type Item, type ItemStatus } from '../../shared/schema';
 import { StatusBadge } from '../components/ItemRow';
 import { PhotoButton } from '../components/PhotoButton';
@@ -8,7 +9,7 @@ import { openPhoto } from '../components/PhotoViewer';
 import { photoUrl } from '../data/photos';
 import { Page } from '../components/chrome';
 import { CheckIcon, MoreIcon } from '../components/icons';
-import { markKitReceived, setReceivedQty, setStatus } from '../data/actions';
+import { setReceivedQty, setStatus } from '../data/actions';
 import { catalog, loaded } from '../data/store';
 
 export function ReceivingListPage() {
@@ -37,11 +38,21 @@ export function ReceivingListPage() {
   );
 }
 
+type Filter = 'all' | 'todo' | 'received' | 'problems';
+const FILTERS: [Filter, string][] = [['all', 'All'], ['todo', 'To check'], ['received', 'Received'], ['problems', 'Problems']];
+const FILTER: Record<Filter, (i: Item) => boolean> = {
+  all: () => true,
+  todo: (i) => i.status === 'expected',
+  received: (i) => i.status === 'received',
+  problems: (i) => PROBLEM_STATUSES.includes(i.status),
+};
+
 export function ReceivingKitPage() {
   const { params } = useRoute();
   const cat = catalog.value;
   const kit = [...cat.kits.values()].find((k) => k.code === decodeURIComponent(params.kit ?? ''));
-  const [hideDone, setHideDone] = useState(false);
+  const [show, setShow] = useState<Filter>('all');
+  const [q, setQ] = useState('');
   const [open, setOpen] = useState<number | null>(null);
   if (!loaded.value) return <Page title="Receiving" back>{null}</Page>;
   if (!kit) return <Page title="Receiving" back><p class="muted center">Kit not found.</p></Page>;
@@ -58,7 +69,11 @@ export function ReceivingKitPage() {
   walk(null, 0);
   const problems = rows.filter((r) => PROBLEM_STATUSES.includes(r.item.status));
   const expected = rows.filter((r) => r.item.status === 'expected').length;
-  const visible = hideDone ? rows.filter((r) => r.item.status === 'expected') : rows;
+  const counts = Object.fromEntries(FILTERS.map(([f]) => [f, rows.filter((r) => FILTER[f](r.item)).length])) as Record<Filter, number>;
+  const key = toSearchKey(q);
+  const text = q.trim().toLowerCase();
+  const visible = rows.filter((r) => FILTER[show](r.item) && (!q.trim()
+    || r.item.search_key.includes(key) || (r.item.description ?? '').toLowerCase().includes(text)));
 
   const mark = (item: Item, s: ItemStatus) => {
     setOpen(null);
@@ -83,20 +98,21 @@ export function ReceivingKitPage() {
             ))}
           </div>
         )}
-        <div class="row wrap">
-          <label class="row small grow">
-            <input type="checkbox" checked={hideDone} onChange={(e) => setHideDone((e.target as HTMLInputElement).checked)} />
-            Hide checked
-          </label>
-          {expected > 0 && (
-            <button class="btn small" onClick={() => confirm(`Mark all ${expected} unchecked items received?`) && markKitReceived(cat, kit.id)}>
-              Mark rest received
-            </button>
-          )}
-        </div>
       </div>
 
-      <div class="list">
+      <input
+        class="input" type="search" placeholder="Part number or description" aria-label="Search this kit"
+        autoCapitalize="characters" autoCorrect="off" spellcheck={false}
+        value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)}
+      />
+      <div class="chips" role="group" aria-label="Show">
+        {FILTERS.map(([f, label]) => (
+          <button class={`chip${show === f ? ' on' : ''}`} aria-pressed={show === f} onClick={() => setShow(f)}>{label} · {counts[f]}</button>
+        ))}
+      </div>
+      {visible.length === 0 && <p class="muted center small">{q.trim() ? `Nothing matches "${q.trim()}"` : 'Nothing here'}{show !== 'all' ? ` under ${FILTERS.find(([f]) => f === show)![1]}` : ''}.</p>}
+
+      <div class="list" hidden={!visible.length}>
         {visible.map(({ item, depth }) => (
           <div class="list-item" style={{ paddingLeft: `${14 + depth * 18}px` }}>
             <div class="row">
@@ -151,7 +167,7 @@ function ReceivedCount({ item, onDone }: { item: Item; onDone: () => void }) {
         value={n} onInput={(e) => setN((e.target as HTMLInputElement).value)}
       />
       <span class="small muted grow">of {fmtQty(item.qty)} {item.unit}</span>
-      <button class="btn small primary" disabled={!ok} onClick={() => { void setReceivedQty(item, value); onDone(); }}>Save</button>
+      <button class="btn small primary" disabled={!ok} onClick={() => { void setReceivedQty(catalog.value, item, value); onDone(); }}>Save</button>
     </div>
   );
 }
