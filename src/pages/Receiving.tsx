@@ -3,6 +3,9 @@ import { useRoute } from 'preact-iso';
 import { fmtQty } from '../../shared/inventory';
 import { PROBLEM_STATUSES, type Item, type ItemStatus } from '../../shared/schema';
 import { StatusBadge } from '../components/ItemRow';
+import { PhotoButton } from '../components/PhotoButton';
+import { openPhoto } from '../components/PhotoViewer';
+import { photoUrl } from '../data/photos';
 import { Page } from '../components/chrome';
 import { CheckIcon, MoreIcon } from '../components/icons';
 import { markKitReceived, setReceivedQty, setStatus } from '../data/actions';
@@ -97,6 +100,12 @@ export function ReceivingKitPage() {
         {visible.map(({ item, depth }) => (
           <div class="list-item" style={{ paddingLeft: `${14 + depth * 18}px` }}>
             <div class="row">
+              {item.photo_key && (
+                <button
+                  type="button" style={{ padding: 0, border: 0, background: 'none' }} aria-label={`Open the photo of ${item.stock_code}`}
+                  onClick={() => openPhoto(photoUrl(item.photo_key!, 'full'), `Photo of ${item.stock_code}`, { code: item.stock_code, detail: item.description ?? undefined })}
+                ><img class="thumb" src={photoUrl(item.photo_key, 'thumb')} alt="" loading="lazy" style={{ width: '44px', height: '44px' }} /></button>
+              )}
               <div class="grow">
                 <div style={{ fontWeight: item.item_type === 'part' ? 600 : 800 }}>
                   {item.stock_code} <StatusBadge status={item.status} />
@@ -119,6 +128,7 @@ export function ReceivingKitPage() {
                   ))}
                 </div>
                 {item.item_type === 'part' && <ReceivedCount item={item} onDone={() => setOpen(null)} />}
+                <div style={{ marginTop: '10px' }}><PhotoButton item={item} /></div>
               </>
             )}
           </div>
