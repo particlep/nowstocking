@@ -27,6 +27,7 @@ import { SearchPage } from './pages/Search';
 import { WarehouseLocationPage } from './pages/WarehouseLocation';
 import { WarehousesPage } from './pages/Warehouses';
 import { SettingsPage } from './pages/Settings';
+import { ExportPage } from './pages/Export';
 
 function SignInBanner() {
   if (syncState.value !== 'signin') return null;
@@ -120,6 +121,7 @@ export function App() {
           <Route path="/locations" component={LocationsPage} />
           <Route path="/labels" component={LabelsPage} />
           <Route path="/settings" component={SettingsPage} />
+          <Route path="/export" component={ExportPage} />
           <Route path="/more" component={MorePage} />
           <Route default component={SearchPage} />
         </Router>

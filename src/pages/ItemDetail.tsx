@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useLocation, useRoute } from 'preact-iso';
 import {
-  ancestors, childrenStoredElsewhere, consumed, effectiveLocation, fmtQty, remaining, splitMismatch,
+  ancestors, childrenStoredElsewhere, consumed, effectiveLocation, fmtQty, onHandQty, remaining, splitMismatch,
 } from '../../shared/inventory';
 import { ITEM_STATUSES, type Item, type Placement } from '../../shared/schema';
 import { ItemRow, LocTags } from '../components/ItemRow';
@@ -243,11 +243,13 @@ function QuantityCard({ item }: { item: Item }) {
   return (
     <section class="card stack">
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px' }}>
-        <div><div class="stat-label">Shipped</div><div class="stat">{fmtQty(item.qty)}</div></div>
+        {item.qty_received != null
+          ? <div><div class="stat-label">Arrived</div><div class="stat">{fmtQty(item.qty_received)}</div><div class="meta">of {fmtQty(item.qty)} shipped</div></div>
+          : <div><div class="stat-label">Shipped</div><div class="stat">{fmtQty(item.qty)}</div></div>}
         <div><div class="stat-label">Consumed</div><div class="stat">{fmtQty(used)}</div></div>
         <div><div class="stat-label">Left</div><div class="stat" style={{ color: rem < 0 ? 'var(--bad)' : 'var(--ok)' }}>{fmtQty(rem)}</div></div>
       </div>
-      <div class="progress"><div style={{ width: `${Math.min(100, item.qty ? (used / item.qty) * 100 : 0)}%`, background: 'var(--navy)' }} /></div>
+      <div class="progress"><div style={{ width: `${Math.min(100, onHandQty(item) ? (used / onHandQty(item)) * 100 : 0)}%`, background: 'var(--navy)' }} /></div>
       <div class="row">
         <div class="stepper">
           <button type="button" aria-label="Fewer" onClick={() => step(-1)}>−</button>

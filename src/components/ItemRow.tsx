@@ -1,4 +1,4 @@
-import { effectiveLocation, fmtQty, remaining } from '../../shared/inventory';
+import { effectiveLocation, fmtQty, onHandQty, remaining } from '../../shared/inventory';
 import type { Item, Placement } from '../../shared/schema';
 import { photoUrl } from '../data/photos';
 import { catalog } from '../data/store';
@@ -39,7 +39,7 @@ export function ItemRow({ item, indent, onClick, showLocation = true }: {
     kit?.code,
     bag && bag.item_type === 'bag' ? bag.stock_code : null,
     item.item_type === 'part'
-      ? rem != null && rem !== item.qty ? `${fmtQty(rem)} of ${fmtQty(item.qty)} left` : `${fmtQty(item.qty)} ${item.unit}`
+      ? rem != null && rem !== onHandQty(item) ? `${fmtQty(rem)} of ${fmtQty(onHandQty(item))} left` : `${fmtQty(onHandQty(item))} ${item.unit}`
       : `${cat.children.get(item.id)?.length ?? 0} inside`,
   ].filter(Boolean).join(' · ');
 

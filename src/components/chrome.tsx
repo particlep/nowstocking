@@ -11,8 +11,9 @@ const LINKS = [
   { href: '/locations', title: 'Locations', desc: 'Bins, shelves, crates' },
   { href: '/labels', title: 'Labels', desc: 'Print QR labels on Avery 5160 / 5163' },
   { href: '/item/new', title: 'Add a part', desc: "For parts that aren't on a packing list" },
+  { href: '/export', title: 'Export list', desc: 'Every part, quantity and location as a CSV' },
   { href: '/members', title: 'Members', desc: 'Invite people to your workshop' },
-  { href: '/settings', title: 'Settings', desc: 'Sync, usage, CSV export, sign out' },
+  { href: '/settings', title: 'Settings', desc: 'Sync, usage, sign out' },
 ];
 
 /** The More links, with Admin first for operators. */

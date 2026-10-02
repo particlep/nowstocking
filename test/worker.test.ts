@@ -230,7 +230,8 @@ describe('mutations and sync', () => {
     const { user, wid } = await newOwner();
     await seed(user, wid);
     const res = await call<string>(user, `/api/w/${wid}/export.csv`);
-    expect(res.body).toContain('EMP,,BAG 1118,part,LP4-3,,225,ea,0,225,expected,,B03,BAG 1118');
+    expect(res.body).toMatch(/^kit,kit_name,/);
+    expect(res.body).toContain(',BAG 1118,part,LP4-3,,225,ea,,,0,225,expected,,B03,,BAG 1118,');
   });
 });
 

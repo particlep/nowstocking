@@ -43,8 +43,10 @@ export interface Item extends Meta {
   source: 'import' | 'manual';
   notes: string | null;
   sort_order: number;
-  /** A photo of the part, by id. See photoPath(). */
+  /** A photo of the part, by id. See photoObject(). */
   photo_key: string | null;
+  /** How many arrived, when counted on receiving. Null: not counted (a received part arrived in full). */
+  qty_received: number | null;
 }
 
 export interface Placement extends Meta {
@@ -92,7 +94,7 @@ export const WRITABLE: { [T in TableName]: readonly (keyof Rows[T] & string)[] }
   locations: ['code', 'type', 'description', 'deleted_at'],
   items: [
     'kit_id', 'parent_id', 'item_type', 'stock_code', 'search_key', 'description', 'qty', 'unit',
-    'vans_bin', 'status', 'source', 'notes', 'sort_order', 'photo_key', 'deleted_at',
+    'vans_bin', 'status', 'source', 'notes', 'sort_order', 'photo_key', 'qty_received', 'deleted_at',
   ],
   placements: ['item_id', 'location_id', 'qty', 'deleted_at'],
   pick_lists: ['section', 'page', 'title', 'deleted_at'],

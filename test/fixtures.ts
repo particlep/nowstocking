@@ -17,7 +17,7 @@ export function item(id: number, kit_id: number, stock_code: string, over: Parti
   return {
     ...meta, id, kit_id, parent_id: null, item_type: 'part', stock_code, search_key: toSearchKey(stock_code),
     description: null, qty: 1, unit: 'ea', vans_bin: null, status: 'expected', source: 'import', notes: null,
-    sort_order: id, photo_key: null, ...over,
+    sort_order: id, photo_key: null, qty_received: null, ...over,
   };
 }
 

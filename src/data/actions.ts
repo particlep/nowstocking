@@ -1,6 +1,6 @@
 // User-level operations, expressed as ops and committed as one mutation each.
 import {
-  descendants, effectiveLocation, remaining, type Catalog,
+  descendants, effectiveLocation, onHandQty, remaining, type Catalog,
 } from '../../shared/inventory';
 import { normalizeLocationCode, toSearchKey } from '../../shared/normalize';
 import type { Item, ItemStatus, LocationType, Op, Placement } from '../../shared/schema';
@@ -9,7 +9,7 @@ import { discard } from './photos';
 
 /** Quantity that placements should add up to: remaining for counted items, qty for weight. */
 export function storedQty(cat: Catalog, item: Item): number {
-  return remaining(cat, item) ?? item.qty;
+  return remaining(cat, item) ?? onHandQty(item);
 }
 
 /** Put all of an item at one location. Returns the ops and an undo op list. */
@@ -95,8 +95,23 @@ export async function useParentLocation(cat: Catalog, item: Item) {
 /** Set a status. Bags and sub-kits set every item inside them too. */
 export async function setStatus(cat: Catalog, item: Item, status: ItemStatus) {
   const targets = [item, ...(item.item_type === 'part' ? [] : descendants(cat, item))];
-  const ops = targets.filter((t) => t.status !== status).map((t) => updateOp('items', t.id, { status }));
+  // Marking something received means it all arrived, so a short count from before no longer applies.
+  const clears = (t: Item) => status === 'received' && t.qty_received != null;
+  const ops = targets
+    .filter((t) => t.status !== status || clears(t))
+    .map((t) => updateOp('items', t.id, clears(t) ? { status, qty_received: null } : { status }));
   await commit(`Mark ${item.stock_code} ${status}`, ops);
+}
+
+/**
+ * Record how many of a part arrived. All of it: received. None: missing. Some: backordered, so the shortfall
+ * shows up under Problems on the Receiving screen.
+ */
+export async function setReceivedQty(item: Item, n: number) {
+  const status: ItemStatus = n >= item.qty ? 'received' : n <= 0 ? 'missing' : 'backordered';
+  await commit(`Received ${n} of ${item.stock_code}`, [
+    updateOp('items', item.id, { status, qty_received: n >= item.qty ? null : n }),
+  ]);
 }
 
 export async function markKitReceived(cat: Catalog, kitId: number) {

@@ -111,7 +111,20 @@ export function consumed(cat: Catalog, item: Item): number {
 /** Null for items sold by weight: they never show consumed or remaining. */
 export function remaining(cat: Catalog, item: Item): number | null {
   if (item.unit === 'lb') return null;
-  return item.qty - consumed(cat, item);
+  return onHandQty(item) - consumed(cat, item);
+}
+
+/** What actually arrived: the received count when one was entered, otherwise the shipped quantity. */
+export function onHandQty(item: Item): number {
+  return item.qty_received ?? item.qty;
+}
+
+/** For the export: how many arrived, or null while the item hasn't been checked in yet. */
+export function receivedQty(item: Item): number | null {
+  if (item.qty_received != null) return item.qty_received;
+  if (item.status === 'received' || item.status === 'damaged') return item.qty;
+  if (item.status === 'missing') return 0;
+  return null;
 }
 
 /** True when an item's split placements don't add up to its remaining quantity. */
@@ -119,7 +132,7 @@ export function splitMismatch(cat: Catalog, item: Item): boolean {
   const own = cat.placementsByItem.get(item.id) ?? [];
   if (own.length < 2 || own.some((p) => p.qty == null)) return false;
   const total = own.reduce((s, p) => s + (p.qty ?? 0), 0);
-  const target = item.unit === 'lb' ? item.qty : item.qty - consumed(cat, item);
+  const target = item.unit === 'lb' ? onHandQty(item) : onHandQty(item) - consumed(cat, item);
   return Math.abs(total - target) > 1e-6;
 }
 
@@ -183,8 +196,9 @@ function csvCell(v: unknown): string {
 
 export function buildCsv(cat: Catalog): string {
   const header = [
-    'kit', 'subkit', 'bag', 'type', 'stock_code', 'description', 'qty', 'unit', 'consumed', 'remaining',
-    'status', 'vans_bin', 'locations', 'location_inherited_from', 'notes', 'source',
+    'kit', 'kit_name', 'kit_received_at', 'subkit', 'bag', 'type', 'stock_code', 'description',
+    'qty', 'unit', 'received', 'short', 'consumed', 'remaining', 'status', 'vans_bin',
+    'locations', 'location_descriptions', 'location_inherited_from', 'notes', 'has_photo', 'source',
   ];
   const lines = [header.join(',')];
   const kits = [...cat.kits.values()].sort((a, b) => a.code.localeCompare(b.code));
@@ -196,13 +210,23 @@ export function buildCsv(cat: Catalog): string {
         const subkit = anc.find((a) => a.item_type === 'subkit');
         const bag = anc.find((a) => a.item_type === 'bag');
         const eff = effectiveLocation(cat, item);
-        const rem = item.item_type === 'part' ? remaining(cat, item) : null;
+        const part = item.item_type === 'part';
+        const rem = part ? remaining(cat, item) : null;
+        const got = part ? receivedQty(item) : null;
+        const short = got != null && got < item.qty ? item.qty - got : null;
+        const locDescs = eff.placements
+          .map((p) => cat.locations.get(p.location_id))
+          .filter((l) => l?.description)
+          .map((l) => `${l!.code}: ${l!.description}`)
+          .join('; ');
         lines.push(
           [
-            kit.code, subkit?.stock_code, bag?.stock_code, item.item_type, item.stock_code, item.description,
-            fmtQty(item.qty), item.unit, rem == null ? '' : fmtQty(consumed(cat, item)), rem == null ? '' : fmtQty(rem),
-            item.status, item.vans_bin, formatLocations(cat, eff.placements), eff.inheritedFrom?.stock_code,
-            item.notes, item.source,
+            kit.code, kit.name, kit.received_at?.slice(0, 10), subkit?.stock_code, bag?.stock_code, item.item_type,
+            item.stock_code, item.description, fmtQty(item.qty), item.unit,
+            got == null ? '' : fmtQty(got), short == null ? '' : fmtQty(short),
+            rem == null ? '' : fmtQty(consumed(cat, item)), rem == null ? '' : fmtQty(rem),
+            item.status, item.vans_bin, formatLocations(cat, eff.placements), locDescs, eff.inheritedFrom?.stock_code,
+            item.notes, item.photo_key ? 'yes' : '', item.source,
           ].map(csvCell).join(','),
         );
         walk(item.id);

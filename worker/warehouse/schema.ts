@@ -82,6 +82,9 @@ CREATE TABLE import_pages (
   /* 3: a photo of each part or bag (the R2 object id) */ `
 ALTER TABLE items ADD COLUMN photo_key TEXT;
 `,
+  /* 4: how many actually arrived, when it's fewer than shipped (null: not counted) */ `
+ALTER TABLE items ADD COLUMN qty_received REAL;
+`,
 ];
 
 /** Apply any migrations this warehouse hasn't run yet. Call inside blockConcurrencyWhile. */

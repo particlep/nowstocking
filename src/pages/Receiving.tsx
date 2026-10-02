@@ -5,7 +5,7 @@ import { PROBLEM_STATUSES, type Item, type ItemStatus } from '../../shared/schem
 import { StatusBadge } from '../components/ItemRow';
 import { Page } from '../components/chrome';
 import { CheckIcon, MoreIcon } from '../components/icons';
-import { markKitReceived, setStatus } from '../data/actions';
+import { markKitReceived, setReceivedQty, setStatus } from '../data/actions';
 import { catalog, loaded } from '../data/store';
 
 export function ReceivingListPage() {
@@ -103,6 +103,7 @@ export function ReceivingKitPage() {
                 </div>
                 <div class="small muted">
                   {item.description}{item.item_type === 'part' ? ` · ${fmtQty(item.qty)} ${item.unit}` : ''}
+                  {item.qty_received != null && <strong style={{ color: 'var(--bad)' }}> · {fmtQty(item.qty_received)} of {fmtQty(item.qty)} arrived</strong>}
                 </div>
               </div>
               {item.status !== 'received' && (
@@ -111,15 +112,36 @@ export function ReceivingKitPage() {
               <button class="icon-btn lg" onClick={() => setOpen(open === item.id ? null : item.id)} aria-label={`More statuses for ${item.stock_code}`} aria-expanded={open === item.id}><MoreIcon /></button>
             </div>
             {open === item.id && (
-              <div class="chips" style={{ marginTop: '10px' }}>
-                {(['expected', 'received', ...PROBLEM_STATUSES] as ItemStatus[]).map((s) => (
-                  <button class={`chip${item.status === s ? ' on' : ''}`} aria-pressed={item.status === s} onClick={() => mark(item, s)}>{s[0].toUpperCase() + s.slice(1)}</button>
-                ))}
-              </div>
+              <>
+                <div class="chips" style={{ marginTop: '10px' }}>
+                  {(['expected', 'received', ...PROBLEM_STATUSES] as ItemStatus[]).map((s) => (
+                    <button class={`chip${item.status === s ? ' on' : ''}`} aria-pressed={item.status === s} onClick={() => mark(item, s)}>{s[0].toUpperCase() + s.slice(1)}</button>
+                  ))}
+                </div>
+                {item.item_type === 'part' && <ReceivedCount item={item} onDone={() => setOpen(null)} />}
+              </>
             )}
           </div>
         ))}
       </div>
     </Page>
+  );
+}
+
+/** For a short shipment: how many of this part actually arrived. */
+function ReceivedCount({ item, onDone }: { item: Item; onDone: () => void }) {
+  const [n, setN] = useState(String(item.qty_received ?? item.qty));
+  const value = Number(n);
+  const ok = n.trim() !== '' && value >= 0;
+  return (
+    <div class="row" style={{ marginTop: '10px' }}>
+      <span class="small">Arrived</span>
+      <input
+        class="input" style={{ width: '90px' }} inputMode="decimal" aria-label={`How many ${item.stock_code} arrived`}
+        value={n} onInput={(e) => setN((e.target as HTMLInputElement).value)}
+      />
+      <span class="small muted grow">of {fmtQty(item.qty)} {item.unit}</span>
+      <button class="btn small primary" disabled={!ok} onClick={() => { void setReceivedQty(item, value); onDone(); }}>Save</button>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildCsv, childrenStoredElsewhere, effectiveLocation, formatLocations, itemsAtLocation, remaining, splitMismatch,
+  buildCsv, childrenStoredElsewhere, effectiveLocation, formatLocations, itemsAtLocation, receivedQty, remaining, splitMismatch,
 } from '../shared/inventory';
 import { defaultPrefix, describePrefix, gridLocations } from '../shared/locationGrid';
 import { normalizeLocationCode, toSearchKey } from '../shared/normalize';
@@ -72,13 +72,50 @@ describe('remaining', () => {
 
 describe('CSV export', () => {
   it('includes every item with its effective location', () => {
-    const csv = buildCsv(sampleCatalog());
-    const lines = csv.trim().split('\r\n');
-    expect(lines[0]).toMatch(/^kit,subkit,bag,type,stock_code/);
-    expect(lines).toHaveLength(6);
-    expect(csv).toContain('EMP,14 EMP HARDWARE,BAG 1118,part,AN470AD4-5,RIVET (LB),0.11,lb,,,expected,,B03,BAG 1118');
-    expect(csv).toContain('EMP,14 EMP HARDWARE,BAG 1118,part,LP4-3,,225,ea,40,185,expected,,B07,');
-    expect(csv).toContain('FUSE,,,part,AN470AD4-5,,0.24,lb,,,expected,,S1-B,');
+    const rows = csvRows(buildCsv(sampleCatalog()));
+    expect(rows).toHaveLength(5);
+    expect(rows.find((r) => r.kit === 'EMP' && r.stock_code === 'AN470AD4-5')).toMatchObject({
+      subkit: '14 EMP HARDWARE', bag: 'BAG 1118', type: 'part', description: 'RIVET (LB)', qty: '0.11', unit: 'lb',
+      received: '', consumed: '', remaining: '', status: 'expected', locations: 'B03', location_inherited_from: 'BAG 1118',
+    });
+    expect(rows.find((r) => r.stock_code === 'LP4-3')).toMatchObject({ qty: '225', consumed: '40', remaining: '185', locations: 'B07' });
+    expect(rows.find((r) => r.kit === 'FUSE')).toMatchObject({ stock_code: 'AN470AD4-5', qty: '0.24', locations: 'S1-B', subkit: '', bag: '' });
+  });
+
+  it('exports what arrived, the shortfall, location descriptions and photos', () => {
+    const cat = sampleCatalog();
+    const lp = [...cat.items.values()].find((i) => i.stock_code === 'LP4-3')!;
+    Object.assign(lp, { qty_received: 200, status: 'backordered', photo_key: crypto.randomUUID() });
+    const b07 = [...cat.locations.values()].find((l) => l.code === 'B07')!;
+    b07.description = 'Drawer 7 left';
+    const row = csvRows(buildCsv(cat)).find((r) => r.stock_code === 'LP4-3')!;
+    expect(row).toMatchObject({
+      qty: '225', received: '200', short: '25', consumed: '40', remaining: '160', status: 'backordered',
+      location_descriptions: 'B07: Drawer 7 left', has_photo: 'yes',
+    });
+  });
+});
+
+/** Naive CSV parsing: fine for test data without commas or quotes in cells. */
+function csvRows(csv: string) {
+  const [head, ...lines] = csv.trim().split('\r\n').map((l) => l.split(','));
+  return lines.map((cells) => Object.fromEntries(head.map((h, i) => [h, cells[i] ?? ''])));
+}
+
+describe('received counts', () => {
+  it('counts remaining from what arrived, and reports received for the export', () => {
+    const cat = sampleCatalog();
+    const lp = [...cat.items.values()].find((i) => i.stock_code === 'LP4-3')!;
+    expect(remaining(cat, lp)).toBe(185);
+    expect(receivedQty(lp)).toBeNull();
+    lp.status = 'received';
+    expect(receivedQty(lp)).toBe(225);
+    lp.qty_received = 100;
+    expect(remaining(cat, lp)).toBe(60);
+    expect(receivedQty(lp)).toBe(100);
+    lp.qty_received = null;
+    lp.status = 'missing';
+    expect(receivedQty(lp)).toBe(0);
   });
 });
 

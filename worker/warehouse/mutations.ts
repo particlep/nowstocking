@@ -13,7 +13,7 @@ type Scalar = string | number | null;
 const DEFAULTS: Partial<Record<TableName, Record<string, Scalar>>> = {
   kits: { received_at: null },
   locations: { description: null },
-  items: { parent_id: null, description: null, vans_bin: null, status: 'expected', source: 'manual', notes: null, photo_key: null },
+  items: { parent_id: null, description: null, vans_bin: null, status: 'expected', source: 'manual', notes: null, photo_key: null, qty_received: null },
   placements: { qty: null },
   pick_lists: { page: null, title: null },
   pick_list_lines: { qty_needed: null, pulled: 0 },

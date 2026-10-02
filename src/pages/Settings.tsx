@@ -2,7 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { useLocation } from 'preact-iso';
 import { api } from '../data/api';
 import { Page } from '../components/chrome';
-import { ShareFileButton } from '../components/ShareFileButton';
+import { ExportButton } from './Export';
 import { db } from '../data/idb';
 import {
   lastSyncedAt, me, outbox, pendingCount, rejected, syncError, syncState,
@@ -72,19 +72,8 @@ export function SettingsPage() {
       <UsageCard />
 
       <div class="section-title">Export</div>
-      <ShareFileButton
-        label="Export CSV"
-        class="btn block"
-        make={async () => {
-          const res = await fetch(wpath('/export.csv'), { credentials: 'same-origin', redirect: 'manual' });
-          if (res.type === 'opaqueredirect' || !res.ok || !(res.headers.get('content-type') ?? '').includes('text/csv')) {
-            throw new Error(res.type === 'opaqueredirect' ? 'Sign in again to export.' : 'Export needs a connection.');
-          }
-          const name = `inventory-${new Date().toISOString().slice(0, 10)}.csv`;
-          return new File([await res.blob()], name, { type: 'text/csv' });
-        }}
-      />
-      <p class="small muted">Every item with its effective location. Needs a connection.</p>
+      <ExportButton class="btn block" />
+      <p class="small muted">Every part with its quantities and locations. Works offline. <a href="/export">What's in it</a></p>
       {authMode.value === 'email' && (
         <button class="btn block danger" style={{ marginTop: '24px' }} onClick={async () => { await signOut(); route('/signin', true); }}>
           Sign out
