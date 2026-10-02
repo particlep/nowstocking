@@ -5,6 +5,7 @@ import {
 import { normalizeLocationCode, toSearchKey } from '../../shared/normalize';
 import type { Item, ItemStatus, LocationType, Op, Placement } from '../../shared/schema';
 import { commit, deleteOp, insertOp, updateOp } from './mutate';
+import { discard } from './photos';
 
 /** Quantity that placements should add up to: remaining for counted items, qty for weight. */
 export function storedQty(cat: Catalog, item: Item): number {
@@ -143,6 +144,7 @@ export async function deleteItem(cat: Catalog, item: Item) {
     ops.push(deleteOp('items', it.id));
   }
   await commit(`Delete ${item.stock_code}`, ops);
+  for (const it of all) discard(it.photo_key);
 }
 
 export function itemFields(stock_code: string) {

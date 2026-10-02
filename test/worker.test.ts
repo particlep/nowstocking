@@ -268,3 +268,38 @@ describe('photo imports', () => {
     expect((await call(a.user, `/api/w/${a.wid}/import/jobs/${jobId}`)).status).toBe(404);
   });
 });
+
+describe('part photos', () => {
+  const jpeg = (bytes: number[]): RequestInit => ({ method: 'PUT', headers: { 'content-type': 'image/jpeg' }, body: new Uint8Array(bytes) });
+
+  it('stores a photo and its thumbnail, serves them only to the workshop, and deletes them', async () => {
+    const { user, wid } = await newOwner();
+    const s = await seed(user, wid);
+    const key = crypto.randomUUID();
+    expect((await call(user, `/api/w/${wid}/photos/${key}/full`, jpeg([1, 2, 3]))).status).toBe(200);
+    expect((await call(user, `/api/w/${wid}/photos/${key}/thumb`, jpeg([4]))).status).toBe(200);
+    const res = await mutate(user, wid, [mutation('photo', [{ op: 'update', table: 'items', id: s.part, fields: { photo_key: key } }])]);
+    expect(res.body.results[0].status).toBe('applied');
+    expect((await sync(user, wid)).rows.items.find((i) => i.id === s.part)?.photo_key).toBe(key);
+
+    const got = await app.fetch(new Request(`${BASE}/api/w/${wid}/photos/${key}/full`, { headers: { 'X-Dev-User': user } }), env);
+    expect(got.status).toBe(200);
+    expect(got.headers.get('cache-control')).toContain('immutable');
+    expect([...new Uint8Array(await got.arrayBuffer())]).toEqual([1, 2, 3]);
+
+    const stranger = await newOwner('stranger');
+    expect((await call(stranger.user, `/api/w/${wid}/photos/${key}/full`)).status).toBe(404);
+
+    expect((await call(user, `/api/w/${wid}/photos/${key}`, { method: 'DELETE' })).status).toBe(200);
+    expect((await call(user, `/api/w/${wid}/photos/${key}/thumb`)).status).toBe(404);
+  });
+
+  it('refuses bad keys and non-JPEG uploads', async () => {
+    const { user, wid } = await newOwner();
+    const s = await seed(user, wid);
+    expect((await call(user, `/api/w/${wid}/photos/../../x/full`, jpeg([1]))).status).toBe(404);
+    expect((await call(user, `/api/w/${wid}/photos/${crypto.randomUUID()}/full`, { method: 'PUT', headers: { 'content-type': 'image/png' }, body: new Uint8Array([1]) })).status).toBe(400);
+    const res = await mutate(user, wid, [mutation('bad photo', [{ op: 'update', table: 'items', id: s.part, fields: { photo_key: 'w/other/secret' } }])]);
+    expect(res.body.results[0]).toMatchObject({ status: 'rejected', error: 'invalid photo_key' });
+  });
+});

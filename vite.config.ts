@@ -51,6 +51,19 @@ export default defineConfig({
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
+        // Part photos never change once stored (a new photo gets a new id), so keep every one that's been shown.
+        // Thumbnails in search then work offline too.
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => /^\/api\/w\/[^/]+\/photos\/[^/]+\/(full|thumb)$/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'part-photos',
+              expiration: { maxEntries: 3000, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+        ],
       },
     }),
   ],

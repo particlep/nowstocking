@@ -263,6 +263,7 @@ input[type='checkbox'] { accent-color: var(--ok); }
 .list { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; overflow: hidden; }
 .list > * + * { border-top: 1px solid var(--surface-2); }
 .list-item { display: block; padding: 14px 16px; color: inherit; text-decoration: none; }
+.thumb { width: 52px; height: 52px; flex-shrink: 0; border-radius: 10px; object-fit: cover; background: var(--surface-2); }
 .list-item.indent { padding-left: 32px; }
 button.list-item { width: 100%; text-align: left; background: none; border: 0; }
 /* A list row laid out horizontally. Declared after .list-item so its display: block doesn't win. */

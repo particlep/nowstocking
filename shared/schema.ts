@@ -43,6 +43,8 @@ export interface Item extends Meta {
   source: 'import' | 'manual';
   notes: string | null;
   sort_order: number;
+  /** A photo of the part, by id. See photoPath(). */
+  photo_key: string | null;
 }
 
 export interface Placement extends Meta {
@@ -90,7 +92,7 @@ export const WRITABLE: { [T in TableName]: readonly (keyof Rows[T] & string)[] }
   locations: ['code', 'type', 'description', 'deleted_at'],
   items: [
     'kit_id', 'parent_id', 'item_type', 'stock_code', 'search_key', 'description', 'qty', 'unit',
-    'vans_bin', 'status', 'source', 'notes', 'sort_order', 'deleted_at',
+    'vans_bin', 'status', 'source', 'notes', 'sort_order', 'photo_key', 'deleted_at',
   ],
   placements: ['item_id', 'location_id', 'qty', 'deleted_at'],
   pick_lists: ['section', 'page', 'title', 'deleted_at'],
@@ -99,6 +101,11 @@ export const WRITABLE: { [T in TableName]: readonly (keyof Rows[T] & string)[] }
 };
 
 export const TABLE_NAMES = Object.keys(WRITABLE) as TableName[];
+
+/** Part photos are stored by a random id: a full-size JPEG and a small thumbnail. */
+export const PHOTO_KEY = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
+export const photoObject = (warehouseId: string, key: string, size: 'full' | 'thumb') =>
+  `w/${warehouseId}/parts/${key}${size === 'thumb' ? '-thumb' : ''}.jpg`;
 
 export type Fields<T extends TableName> = Partial<Omit<Rows[T], 'id' | 'version' | 'updated_at' | 'updated_by'>>;
 

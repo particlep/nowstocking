@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useLocation, useRoute } from 'preact-iso';
 import {
   ancestors, childrenStoredElsewhere, consumed, effectiveLocation, fmtQty, remaining, splitMismatch,
 } from '../../shared/inventory';
 import { ITEM_STATUSES, type Item, type Placement } from '../../shared/schema';
 import { ItemRow, LocTags } from '../components/ItemRow';
-import { AlertIcon, ArrowIcon, CheckIcon, UndoIcon } from '../components/icons';
+import { AlertIcon, ArrowIcon, CameraIcon, CheckIcon, UndoIcon } from '../components/icons';
+import { openPhoto } from '../components/PhotoViewer';
 import { LocationPicker } from '../components/LocationPicker';
 import { Page } from '../components/chrome';
 import {
@@ -14,6 +15,7 @@ import {
 import { commit, deleteOp, updateOp } from '../data/mutate';
 import { catalog, loaded, tables } from '../data/store';
 import { api } from '../data/api';
+import { photoUrl, removeItemPhoto, setItemPhoto } from '../data/photos';
 import { wpath } from '../data/workspace';
 
 export function ItemDetailPage() {
@@ -48,6 +50,8 @@ function ItemDetail({ item }: { item: Item }) {
           {item.vans_bin && <> · Van's bin {item.vans_bin}</>}
         </div>
       </div>
+
+      <PhotoCard item={item} />
 
       <section class="card stack">
         <div class="row" style={{ alignItems: 'flex-start', gap: '14px' }}>
@@ -102,6 +106,62 @@ function ItemDetail({ item }: { item: Item }) {
       <EditCard item={item} />
       <History item={item} />
     </Page>
+  );
+}
+
+/** One photo per part or bag, so it's easy to recognise on the shelf. */
+function PhotoCard({ item }: { item: Item }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = async (label: string, work: () => Promise<void>) => {
+    setBusy(label);
+    setError(null);
+    try { await work(); } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setBusy(null); }
+  };
+  const picker = (
+    <input
+      ref={input} type="file" accept="image/*" hidden
+      onChange={(e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        (e.target as HTMLInputElement).value = '';
+        if (file) void run('Uploading photo…', () => setItemPhoto(item, file));
+      }}
+    />
+  );
+
+  if (!item.photo_key) {
+    return (
+      <div class="stack">
+        {picker}
+        <button class="btn block" disabled={!!busy} onClick={() => input.current?.click()}>
+          <CameraIcon />{busy ?? 'Add a photo'}
+        </button>
+        {error && <p class="banner bad small">{error}</p>}
+      </div>
+    );
+  }
+  return (
+    <div class="stack">
+      {picker}
+      <button
+        type="button"
+        onClick={() => openPhoto(photoUrl(item.photo_key!, 'full'), `Photo of ${item.stock_code}`, { code: item.stock_code, detail: item.description ?? undefined })}
+        aria-label={`Open the photo of ${item.stock_code} full size`}
+        style={{ display: 'block', width: '100%', padding: 0, border: 0, background: 'none' }}
+      >
+        <img class="photo" src={photoUrl(item.photo_key, 'full')} alt={`Photo of ${item.stock_code}`} style={{ height: '220px', objectFit: 'cover' }} />
+      </button>
+      <div class="row">
+        <button class="btn small grow" disabled={!!busy} onClick={() => input.current?.click()}><CameraIcon />{busy ?? 'Replace photo'}</button>
+        <button
+          class="btn small danger" disabled={!!busy}
+          onClick={() => { if (confirm(`Remove the photo of ${item.stock_code}?`)) void run('Removing…', () => removeItemPhoto(item)); }}
+        >Remove</button>
+      </div>
+      {error && <p class="banner bad small">{error}</p>}
+    </div>
   );
 }
 
@@ -307,6 +367,7 @@ function describeChange(c: Change) {
     if (created) return <>Consumed <strong>{String(fields.qty)}</strong>{fields.note ? ` (${fields.note})` : ''}</>;
     if (c.field === 'deleted_at') return c.new_value ? 'Consumption undone' : 'Consumption restored';
   }
+  if (c.field === 'photo_key') return !c.new_value ? 'Photo removed' : c.old_value ? 'Photo replaced' : 'Photo added';
   if (created) return 'Created';
   return <><strong>{c.field}</strong>: {c.old_value ?? '—'} → {c.new_value ?? '—'}</>;
 }

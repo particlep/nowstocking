@@ -2,7 +2,7 @@ import { Hono, type Context } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { WAREHOUSE_ID, canManage, type Role } from '../shared/directory';
 import type { ImportKind } from '../shared/importTypes';
-import { TABLE_NAMES, type Mutation, type TableName } from '../shared/schema';
+import { PHOTO_KEY, TABLE_NAMES, photoObject, type Mutation, type TableName } from '../shared/schema';
 import { authMode, requireAccess, type AppEnv } from './auth';
 import {
   accountRole, archiveWarehouse, createWarehouse, describe, provision, renameWarehouse, warehouseRole,
@@ -21,7 +21,8 @@ const app = new Hono<AppEnv>().basePath('/api');
 
 app.use('*', async (c, next) => {
   await next();
-  c.header('cache-control', 'no-store');
+  // API responses aren't cached, except where a route says otherwise (part photos never change once stored).
+  if (!c.res.headers.has('cache-control')) c.header('cache-control', 'no-store');
 });
 app.use('*', requireAccess);
 
@@ -369,6 +370,38 @@ w.delete('/import/jobs/:id', (c) =>
     return c.json({ ok: true });
   }),
 );
+
+// ---- Part photos: a full-size JPEG and a thumbnail per photo, stored by a random id ----
+
+const PHOTO_SIZES = ['full', 'thumb'] as const;
+const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
+
+w.put('/photos/:key/:size', async (c) => {
+  const { key, size } = c.req.param();
+  if (!PHOTO_KEY.test(key) || !PHOTO_SIZES.includes(size as 'full')) return c.json({ error: 'not found' }, 404);
+  if ((c.req.header('content-type') ?? '').split(';')[0].trim() !== 'image/jpeg') return c.json({ error: 'photos must be JPEG' }, 400);
+  const body = await c.req.arrayBuffer();
+  if (!body.byteLength || body.byteLength > MAX_PHOTO_BYTES) return c.json({ error: 'photo is empty or too large' }, 400);
+  await c.env.IMPORTS.put(photoObject(c.get('warehouse').id, key, size as 'full'), body, { httpMetadata: { contentType: 'image/jpeg' } });
+  return c.json({ ok: true });
+});
+
+w.get('/photos/:key/:size', async (c) => {
+  const { key, size } = c.req.param();
+  if (!PHOTO_KEY.test(key) || !PHOTO_SIZES.includes(size as 'full')) return c.json({ error: 'not found' }, 404);
+  const obj = await c.env.IMPORTS.get(photoObject(c.get('warehouse').id, key, size as 'full'));
+  if (!obj) return c.json({ error: 'not found' }, 404);
+  return new Response(obj.body, { headers: { 'content-type': 'image/jpeg', 'cache-control': 'private, max-age=31536000, immutable' } });
+});
+
+/** Removing or replacing a photo deletes the old one. The item's photo_key is cleared by a normal mutation. */
+w.delete('/photos/:key', async (c) => {
+  const key = c.req.param('key');
+  if (!PHOTO_KEY.test(key)) return c.json({ error: 'not found' }, 404);
+  const wid = c.get('warehouse').id;
+  await c.env.IMPORTS.delete([photoObject(wid, key, 'full'), photoObject(wid, key, 'thumb')]);
+  return c.json({ ok: true });
+});
 
 w.get('/import/image/*', (c) => {
   const key = c.req.path.replace(/^\/api\/w\/[^/]+\/import\/image\//, '');

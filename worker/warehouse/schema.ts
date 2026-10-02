@@ -79,6 +79,9 @@ CREATE TABLE import_pages (
   error TEXT, result TEXT, updated_at TEXT NOT NULL, PRIMARY KEY (job_id, page)
 );
 `,
+  /* 3: a photo of each part or bag (the R2 object id) */ `
+ALTER TABLE items ADD COLUMN photo_key TEXT;
+`,
 ];
 
 /** Apply any migrations this warehouse hasn't run yet. Call inside blockConcurrencyWhile. */

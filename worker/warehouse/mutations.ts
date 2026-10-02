@@ -1,7 +1,7 @@
 // Applies queued client edits to one warehouse. Each mutation is one SQLite transaction, applied at most once.
 import { normalizeLocationCode, toSearchKey } from '../../shared/normalize';
 import {
-  TABLE_NAMES, WRITABLE,
+  PHOTO_KEY, TABLE_NAMES, WRITABLE,
   type Mutation, type MutationResult, type Op, type TableName,
 } from '../../shared/schema';
 
@@ -13,7 +13,7 @@ type Scalar = string | number | null;
 const DEFAULTS: Partial<Record<TableName, Record<string, Scalar>>> = {
   kits: { received_at: null },
   locations: { description: null },
-  items: { parent_id: null, description: null, vans_bin: null, status: 'expected', source: 'manual', notes: null },
+  items: { parent_id: null, description: null, vans_bin: null, status: 'expected', source: 'manual', notes: null, photo_key: null },
   placements: { qty: null },
   pick_lists: { page: null, title: null },
   pick_list_lines: { qty_needed: null, pulled: 0 },
@@ -49,6 +49,7 @@ function cleanFields(table: TableName, fields: unknown): Record<string, Scalar> 
     out.search_key = toSearchKey(out.stock_code);
   }
   if (table === 'locations' && typeof out.code === 'string') out.code = normalizeLocationCode(out.code);
+  if (table === 'items' && out.photo_key != null && !PHOTO_KEY.test(String(out.photo_key))) throw new Rejection('invalid photo_key');
   return out;
 }
 

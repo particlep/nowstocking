@@ -1,5 +1,6 @@
 import { effectiveLocation, fmtQty, remaining } from '../../shared/inventory';
 import type { Item, Placement } from '../../shared/schema';
+import { photoUrl } from '../data/photos';
 import { catalog } from '../data/store';
 import { BagIcon } from './icons';
 
@@ -44,7 +45,9 @@ export function ItemRow({ item, indent, onClick, showLocation = true }: {
 
   const content = (
     <>
-      {container && (
+      {item.photo_key ? (
+        <img class="thumb" src={photoUrl(item.photo_key, 'thumb')} alt="" loading="lazy" />
+      ) : container && (
         <span class="icon-btn" style={{ width: '36px', height: '36px', borderRadius: '10px' }}><BagIcon /></span>
       )}
       <span class="grow" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
