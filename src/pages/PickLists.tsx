@@ -6,7 +6,7 @@ import { PROBLEM_STATUSES, type Item, type PickListLine } from '../../shared/sch
 import { StatusBadge } from '../components/ItemRow';
 import { Page } from '../components/chrome';
 import type { ImportJobSummary } from '../../shared/importTypes';
-import { CameraIcon, CheckIcon, ChevronIcon, PlusIcon } from '../components/icons';
+import { CameraIcon, CheckIcon, ChevronIcon, PlusIcon, UndoIcon } from '../components/icons';
 import { PhotoUpload } from '../components/PhotoUpload';
 import { onRefresh } from '../components/PullToRefresh';
 import { api } from '../data/api';
@@ -303,7 +303,9 @@ function PickLine({ r, listId }: { r: ResolvedLine; listId: number }) {
   const cat = catalog.value;
   const { line } = r;
   const pulled = !!line.pulled;
-  const [consumedIds, setConsumedIds] = useState<number[]>([]);
+  // What's already been logged from this pick list, per item, from the synced consumption records: survives
+  // leaving the screen, and shows on every phone.
+  const logged = (itemId: number) => (cat.consumptionsByItem.get(itemId) ?? []).filter((c) => c.pick_list_id === listId);
   const tone = pulled ? ' done' : r.problem === 'backordered' ? ' warn' : r.problem ? ' problem' : '';
   const single = r.items.length === 1 ? r.items[0] : null;
   return (
@@ -333,15 +335,28 @@ function PickLine({ r, listId }: { r: ResolvedLine; listId: number }) {
       ))}
       {pulled && line.qty_needed != null && (
         <div class="row wrap" style={{ paddingLeft: '38px' }}>
-          {r.items.filter((it) => remaining(cat, it) != null && !consumedIds.includes(it.id)).map((it) => (
-            <button
-              class="btn small"
-              onClick={async () => {
-                await consume(it, line.qty_needed!, listId, null);
-                setConsumedIds([...consumedIds, it.id]);
-              }}
-            >Log {fmtQty(line.qty_needed!)} consumed{r.items.length > 1 ? ` from ${cat.kits.get(it.kit_id)?.code}` : ''}</button>
-          ))}
+          {r.items.filter((it) => remaining(cat, it) != null).map((it) => {
+            const from = r.items.length > 1 ? ` from ${cat.kits.get(it.kit_id)?.code}` : '';
+            const done = logged(it.id);
+            if (done.length) {
+              const qty = done.reduce((s, c) => s + c.qty, 0);
+              return (
+                <span class="row small" style={{ gap: '6px' }}>
+                  <CheckIcon style={{ width: '16px', height: '16px', color: 'var(--ok)' }} />
+                  <span>{fmtQty(qty)} consumed{from}</span>
+                  <button
+                    class="btn small" aria-label={`Undo consuming ${line.stock_code}`}
+                    onClick={() => commit(`Undo consuming ${line.stock_code}`, done.map((c) => deleteOp('consumptions', c.id)))}
+                  ><UndoIcon />Undo</button>
+                </span>
+              );
+            }
+            return (
+              <button class="btn small" onClick={() => consume(it, line.qty_needed!, listId, null)}>
+                Log {fmtQty(line.qty_needed!)} consumed{from}
+              </button>
+            );
+          })}
         </div>
       )}
       {!pulled && (
