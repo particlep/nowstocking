@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCsv, childrenStoredElsewhere, effectiveLocation, formatLocations, itemsAtLocation, receivedQty, remaining, splitMismatch,
 } from '../shared/inventory';
+import changelogText from '../CHANGELOG.md?raw';
+import { newSince, parseChangelog } from '../shared/changelog';
 import { defaultPrefix, describePrefix, gridLocations } from '../shared/locationGrid';
 import { normalizeLocationCode, toSearchKey } from '../shared/normalize';
 import { newId } from '../shared/schema';
@@ -145,5 +147,29 @@ describe('location grids', () => {
     expect(describePrefix('shelf', 'S2-')).toBe('Shelf 2');
     expect(describePrefix('rack', 'RACK-3-')).toBe('Rack 3');
     expect(describePrefix('bin', 'B')).toBe('');
+  });
+});
+
+describe('changelog', () => {
+  const sample = '# Changelog\n\nIntro.\n\n## 12 · 2026-10-03\n- Two\n- Three\n\n## 1–10 · 2026-09-01\n- First\n';
+
+  it('reads versions, dates and changes, newest first', () => {
+    const r = parseChangelog(sample);
+    expect(r.map((x) => [x.version, x.number, x.date])).toEqual([['12', 12, '2026-10-03'], ['1–10', 10, '2026-09-01']]);
+    expect(r[0].changes).toEqual(['Two', 'Three']);
+  });
+
+  it('lists what is new since the version a device last ran', () => {
+    const r = parseChangelog(sample);
+    expect(newSince(r, 10, 12).map((x) => x.version)).toEqual(['12']);
+    expect(newSince(r, 12, 12)).toEqual([]);
+  });
+
+  it('parses the real CHANGELOG.md', () => {
+    const r = parseChangelog(changelogText);
+    expect(r.length).toBeGreaterThan(5);
+    expect(r.every((x) => x.changes.length > 0)).toBe(true);
+    const headings = changelogText.split('\n').filter((l) => l.startsWith('## ')).length;
+    expect(r).toHaveLength(headings);
   });
 });

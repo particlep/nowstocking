@@ -28,6 +28,9 @@ import { WarehouseLocationPage } from './pages/WarehouseLocation';
 import { WarehousesPage } from './pages/Warehouses';
 import { SettingsPage } from './pages/Settings';
 import { ExportPage } from './pages/Export';
+import { WhatsNewPage } from './pages/WhatsNew';
+import { newSince } from '../shared/changelog';
+import { releases, runningVersion } from './data/changelog';
 
 function SignInBanner() {
   if (syncState.value !== 'signin') return null;
@@ -70,6 +73,37 @@ function InstallHint() {
   );
 }
 
+const SEEN_KEY = 'ns-seen-version';
+
+/** After an update: what's new since the version this device last ran. Nothing on a first install. */
+function UpdatedNote() {
+  const [fresh, setFresh] = useState(() => {
+    if (!runningVersion) return [];
+    let seen = 0;
+    try { seen = Number(localStorage.getItem(SEEN_KEY)) || 0; } catch { return []; }
+    if (!seen) {
+      try { localStorage.setItem(SEEN_KEY, String(runningVersion)); } catch { /* ignore */ }
+      return [];
+    }
+    return newSince(releases, seen, runningVersion);
+  });
+  if (!fresh.length) return null;
+  const dismiss = () => {
+    try { localStorage.setItem(SEEN_KEY, String(runningVersion)); } catch { /* ignore */ }
+    setFresh([]);
+  };
+  const changes = fresh.flatMap((r) => r.changes);
+  return (
+    <div class="banner ok row" style={{ margin: 'calc(env(safe-area-inset-top) + 8px) 16px 0', alignItems: 'flex-start' }}>
+      <span class="grow small">
+        <strong>Updated to version {runningVersion}.</strong> {changes[0]}{changes.length > 1 ? ` (+${changes.length - 1} more)` : ''}{' '}
+        <a href="/whats-new" onClick={dismiss}>What's new</a>
+      </span>
+      <button class="btn small" onClick={dismiss}>OK</button>
+    </div>
+  );
+}
+
 function Shell({ children }: { children: preact.ComponentChildren }) {
   const { path } = useLocation();
   const show = warehouseId.value || path === '/signin' || path === '/signup';
@@ -99,6 +133,7 @@ export function App() {
         <PullToRefresh />
         <SignInBanner />
         <InstallHint />
+        <UpdatedNote />
         <Router>
           <Route path="/" component={SearchPage} />
           <Route path="/scan" component={ScanPage} />
@@ -124,6 +159,7 @@ export function App() {
           <Route path="/labels" component={LabelsPage} />
           <Route path="/settings" component={SettingsPage} />
           <Route path="/export" component={ExportPage} />
+          <Route path="/whats-new" component={WhatsNewPage} />
           <Route path="/more" component={MorePage} />
           <Route default component={SearchPage} />
         </Router>

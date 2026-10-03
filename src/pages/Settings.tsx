@@ -10,6 +10,8 @@ import {
 import { fullResync, signIn, sync } from '../data/sync';
 import { authMode, current, legal, signOut, wpath } from '../data/workspace';
 import { DeleteAccount } from '../components/DeleteAccount';
+import { releases } from '../data/changelog';
+import { ReleaseList } from './WhatsNew';
 
 export function SettingsPage() {
   const { route } = useLocation();
@@ -80,6 +82,12 @@ export function SettingsPage() {
         </button>
       )}
 
+      <div class="row" style={{ margin: '22px 4px 0' }}>
+        <div class="section-title grow" style={{ margin: 0 }}>What's new</div>
+        <a class="small" href="/whats-new">All versions</a>
+      </div>
+      <ReleaseList list={releases.slice(0, 3)} />
+
       <div class="section-title">Account</div>
       <DeleteAccount />
       {(legal.value.terms || legal.value.privacy) && (
@@ -89,6 +97,7 @@ export function SettingsPage() {
           {legal.value.privacy && <a href={legal.value.privacy} target="_blank" rel="noreferrer">Privacy Policy</a>}
         </p>
       )}
+      <p class="meta center" style={{ margin: 0 }}>Version {__APP_VERSION__}{me.value ? ` · Signed in as ${me.value}` : ''}</p>
     </Page>
   );
 }

@@ -38,7 +38,11 @@ machines and furniture.
 - **Set up a whole shelf at once.** Give a prefix, rows and columns, and get every location with its description: `S2-1A` "Shelf 2, 1A" through `S2-5D`. Bins come out as `B01`, `B02`…
 - **Put away in bulk.** Scan a bin once, then tap bags and parts as they go in. A bag's location covers every part inside it.
 - **Pick lists from the plans.** Photograph an instruction page and get every part it calls for, matched to where it's stored.
-- **Receiving.** Check a kit against its packing list, with search and To check / Received / Problems filters. Record short shipments ("3 of 5 arrived"): they're marked backordered, and what's left is counted from what arrived.
+- **Receiving.** Check a kit against its packing list, with search and To check / Received / Problems filters.
+  - Search a bag number to see what's inside it and receive the parts one by one, or check the bag to receive everything in it.
+  - Record short shipments ("3 of 5 arrived"): they're marked backordered, and what's left is counted from what arrived.
+  - Put each line away as you go, by scanning a location label or searching for the location, and take its photo.
+  - A kit's received date is recorded when its last line is checked.
 - **A photo of every part.** Take or pick one on the part's page or while receiving. Search results show thumbnails, and they work offline too.
 - **Export the whole list.** A CSV with every kit, bag and part: shipped, received, short, consumed and remaining quantities, status, locations and their descriptions. It's built on the phone, so it works offline.
 - **Consumed and left, moves and splits, emailed label PDFs.**
@@ -307,6 +311,10 @@ Pull requests that make these prompts work for more kit makers are welcome.
 
 Issues and pull requests are welcome. Please keep changes small and focused, and run `npm run build` before opening a
 PR. Schema changes go in a new numbered file in `migrations/`.
+
+The version number is the commit count. When a change is something people will notice, add it to
+[CHANGELOG.md](CHANGELOG.md) under the version it will become (`git rev-list --count HEAD` plus one). The app's
+What's new screen and its after-update note are built from that file.
 
 ## License
 
