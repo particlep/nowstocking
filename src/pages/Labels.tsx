@@ -19,7 +19,7 @@ export function LabelsPage() {
   const [start, setStart] = useState(0);
   const [q, setQ] = useState('');
   const [outlines, setOutlines] = useState(false);
-  const [showDesc, setShowDesc] = useState(false);
+  const [showDesc, setShowDesc] = useState(true);
   const [emailOn, setEmailOn] = useState(false);
   const [emailTo, setEmailTo] = useState('');
   const [sending, setSending] = useState(false);
