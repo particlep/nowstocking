@@ -11,14 +11,12 @@ export function newWarehouseId(): string {
   return Array.from(bytes, (b) => alphabet[b % 36]).join('');
 }
 
-/** The user's id, and whether this call created them (the returned id is the one we just made up). */
-async function upsertUser(db: D1Database, email: string): Promise<{ id: string; created: boolean }> {
-  const id = crypto.randomUUID();
+async function upsertUser(db: D1Database, email: string): Promise<string> {
   const row = await db
     .prepare('INSERT INTO users (id, email, created_at) VALUES (?, ?, ?) ON CONFLICT(email) DO UPDATE SET email = email RETURNING id')
-    .bind(id, email.toLowerCase(), now())
+    .bind(crypto.randomUUID(), email.toLowerCase(), now())
     .first<{ id: string }>();
-  return { id: row!.id, created: row!.id === id };
+  return row!.id;
 }
 
 async function createAccount(db: D1Database, userId: string, name: string, role: Role = 'owner') {
@@ -35,10 +33,12 @@ async function createAccount(db: D1Database, userId: string, name: string, role:
  * Make sure the user exists and belongs somewhere. Pending invites for their email are accepted first.
  * - single (self-hosted): everyone who gets past sign-in joins the one account. The first person is its owner.
  * - open (hosted): a new user gets their own account and first warehouse.
- * `created` is true the first time this email signs in.
+ * `created` is true the first time this user is set up: they didn't belong to any account yet. (With email sign-in
+ * the user row already exists by now; it's made when the sign-up code is checked.)
  */
 export async function provision(db: D1Database, email: string, mode: 'single' | 'open'): Promise<{ userId: string; created: boolean }> {
-  const { id: userId, created } = await upsertUser(db, email);
+  const userId = await upsertUser(db, email);
+  const created = !(await db.prepare('SELECT 1 FROM memberships WHERE user_id = ? LIMIT 1').bind(userId).first());
   await acceptInvites(db, userId, email.toLowerCase());
   const has = await db.prepare('SELECT 1 FROM memberships WHERE user_id = ? LIMIT 1').bind(userId).first();
   if (has) return { userId, created };
@@ -78,11 +78,11 @@ export async function describe(db: D1Database, userId: string, email: string): P
 /** The caller's role in the account that owns this warehouse, or null if they can't open it. */
 export async function warehouseRole(db: D1Database, email: string, warehouseId: string) {
   return db.prepare(
-    `SELECT m.role, w.account_id FROM warehouses w
+    `SELECT m.role, w.account_id, u.terms_accepted_at FROM warehouses w
      JOIN memberships m ON m.account_id = w.account_id
      JOIN users u ON u.id = m.user_id
      WHERE w.id = ? AND u.email = ? AND w.archived_at IS NULL`,
-  ).bind(warehouseId, email.toLowerCase()).first<{ role: Role; account_id: string }>();
+  ).bind(warehouseId, email.toLowerCase()).first<{ role: Role; account_id: string; terms_accepted_at: string | null }>();
 }
 
 export async function accountRole(db: D1Database, email: string, accountId: string) {

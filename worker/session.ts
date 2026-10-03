@@ -48,19 +48,33 @@ function newToken() {
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-/** Email a sign-in code. Returns the code only when EXPOSE_LOGIN_CODES is set (tests). */
-export async function startLogin(env: Env, rawEmail: string): Promise<{ code?: string }> {
+export interface Signup {
+  name: string;
+  terms: boolean;
+}
+
+/**
+ * Email a code. Signing in sends one only to registered users, but answers the same either way, so the form
+ * can't be used to find out who has an account. Signing up needs a name and accepted terms, which the code
+ * carries until it's used. Returns the code only when EXPOSE_LOGIN_CODES is set (tests).
+ */
+export async function startLogin(env: Env, rawEmail: string, signup?: Signup): Promise<{ code?: string }> {
   const email = rawEmail.trim().toLowerCase();
   if (!EMAIL_RE.test(email)) throw new AuthError('Enter a valid email address.');
+  const name = signup?.name.trim().slice(0, 80) ?? '';
+  if (signup && !name) throw new AuthError('Enter your name.');
+  if (signup && signup.terms !== true) throw new AuthError('Agree to the Terms and Privacy Policy to sign up.');
   const key = secret(env);
+  if (!signup && !(await env.DB.prepare('SELECT 1 FROM users WHERE email = ?').bind(email).first())) return {};
   const hourAgo = new Date(Date.now() - 3_600_000).toISOString();
   const recent = await env.DB.prepare('SELECT COUNT(*) AS n FROM login_codes WHERE email = ? AND created_at > ?')
     .bind(email, hourAgo).first<{ n: number }>();
   if ((recent?.n ?? 0) >= MAX_CODES_PER_HOUR) throw new AuthError('Too many codes requested. Try again in an hour.', 429);
 
   const code = newCode();
-  await env.DB.prepare('INSERT INTO login_codes (email, code_hash, created_at, expires_at) VALUES (?, ?, ?, ?)')
-    .bind(email, await hmac(key, `${email}:${code}`), new Date().toISOString(), minutesFromNow(CODE_TTL_MINUTES)).run();
+  const now = new Date().toISOString();
+  await env.DB.prepare('INSERT INTO login_codes (email, code_hash, created_at, expires_at, signup_name, terms_accepted_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .bind(email, await hmac(key, `${email}:${code}`), now, minutesFromNow(CODE_TTL_MINUTES), signup ? name : null, signup ? now : null).run();
 
   if ((env as { EXPOSE_LOGIN_CODES?: string }).EXPOSE_LOGIN_CODES === 'true') return { code };
   await env.EMAIL.send({
@@ -82,8 +96,8 @@ export async function verifyLogin(env: Env, rawEmail: string, rawCode: string): 
   // Any unexpired code works, not just the newest: asking again shouldn't kill a code that's still on its way.
   // Wrong tries count across all of them, so asking for more codes doesn't buy more guesses.
   const { results: active } = await env.DB.prepare(
-    'SELECT id, code_hash, attempts FROM login_codes WHERE email = ? AND used_at IS NULL AND expires_at > ? ORDER BY id DESC',
-  ).bind(email, now).all<{ id: number; code_hash: string; attempts: number }>();
+    'SELECT id, code_hash, attempts, signup_name, terms_accepted_at FROM login_codes WHERE email = ? AND used_at IS NULL AND expires_at > ? ORDER BY id DESC',
+  ).bind(email, now).all<{ id: number; code_hash: string; attempts: number; signup_name: string | null; terms_accepted_at: string | null }>();
   if (!active.length) throw new AuthError('That code has expired. Ask for a new one.');
   if (active.reduce((sum, r) => sum + r.attempts, 0) >= MAX_ATTEMPTS) {
     throw new AuthError('Too many wrong tries. Ask for a new code in a few minutes.', 429);
@@ -96,9 +110,16 @@ export async function verifyLogin(env: Env, rawEmail: string, rawCode: string): 
   }
 
   const token = newToken();
+  // A new account comes only from a sign-up code, which carries the name and the terms acceptance.
+  // Signing up again with an existing email just signs in, filling in a name or acceptance it didn't have.
+  const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first<{ id: string }>();
+  if (!existing && !row.terms_accepted_at) throw new AuthError('Sign up first to create an account.');
   const userRow = await env.DB
-    .prepare('INSERT INTO users (id, email, created_at) VALUES (?, ?, ?) ON CONFLICT(email) DO UPDATE SET email = email RETURNING id')
-    .bind(crypto.randomUUID(), email, now).first<{ id: string }>();
+    .prepare(`INSERT INTO users (id, email, created_at, name, terms_accepted_at) VALUES (?, ?, ?, ?, ?)
+              ON CONFLICT(email) DO UPDATE SET name = COALESCE(users.name, excluded.name),
+                terms_accepted_at = COALESCE(users.terms_accepted_at, excluded.terms_accepted_at)
+              RETURNING id`)
+    .bind(crypto.randomUUID(), email, now, row.signup_name, row.terms_accepted_at).first<{ id: string }>();
   await env.DB.batch([
     env.DB.prepare('UPDATE login_codes SET used_at = ? WHERE id = ?').bind(now, row.id),
     env.DB.prepare('INSERT INTO sessions (token_hash, user_id, created_at, expires_at, last_seen_at) VALUES (?, ?, ?, ?, ?)')

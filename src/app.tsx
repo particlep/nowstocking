@@ -4,10 +4,10 @@ import { hidesTabs, SideNav, TabBar } from './components/chrome';
 import { PhotoViewer } from './components/PhotoViewer';
 import { PullToRefresh } from './components/PullToRefresh';
 import { syncError, syncState } from './data/store';
-import { authMode, warehouseId } from './data/workspace';
+import { authMode, identity, warehouseId } from './data/workspace';
 import { AdminPage } from './pages/Admin';
 import { MembersPage } from './pages/Members';
-import { SignInPage } from './pages/SignIn';
+import { SignInPage, SignUpPage, TermsUpdatePage } from './pages/SignIn';
 import { signIn } from './data/sync';
 import { AddItemPage } from './pages/AddItem';
 import { ImportListPage } from './pages/Import';
@@ -33,7 +33,7 @@ function SignInBanner() {
   if (syncState.value !== 'signin') return null;
   return (
     <div class="banner bad row" style={{ margin: 'calc(env(safe-area-inset-top) + 8px) 16px 0', alignItems: 'center' }}>
-      <span class="grow small">Sign-in expired. Your edits are saved on this phone.</span>
+      <span class="grow small">You're signed out. Your edits are saved on this device.</span>
       <button class="btn small primary" onClick={signIn}>Sign in</button>
     </div>
   );
@@ -72,14 +72,15 @@ function InstallHint() {
 
 function Shell({ children }: { children: preact.ComponentChildren }) {
   const { path } = useLocation();
-  const show = warehouseId.value || path === '/signin';
+  const show = warehouseId.value || path === '/signin' || path === '/signup';
+  if (identity.value?.terms_required) return <div class="app no-tabs"><TermsUpdatePage /></div>;
   return <div class={`app${hidesTabs(path) ? ' no-tabs' : ''}`}>{show ? children : <FirstRun />}</div>;
 }
 
 /** Before this phone has ever loaded a warehouse. */
 function FirstRun() {
   const state = syncState.value;
-  if (state === 'signin' && authMode.value === 'email') return <SignInPage />;
+  if (state === 'signin' && authMode.value === 'email') return location.pathname === '/signup' ? <SignUpPage /> : <SignInPage />;
   return (
     <main class="page stack" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 48px)', textAlign: 'center' }}>
       <h1 class="large-title">NowStocking</h1>
@@ -107,6 +108,7 @@ export function App() {
           <Route path="/members" component={MembersPage} />
           <Route path="/admin" component={AdminPage} />
           <Route path="/signin" component={SignInPage} />
+          <Route path="/signup" component={SignUpPage} />
           <Route path="/item/new" component={AddItemPage} />
           <Route path="/item/:id" component={ItemDetailPage} />
           <Route path="/putaway" component={PutAwayPage} />

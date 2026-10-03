@@ -83,7 +83,7 @@ const TABS = [
 
 /** Focused task screens hide the tab bar. */
 export function hidesTabs(path: string) {
-  return path === '/signin' || /^\/import\/[^/]+\/row\//.test(path);
+  return path === '/signin' || path === '/signup' || /^\/import\/[^/]+\/row\//.test(path);
 }
 
 export function TabBar() {

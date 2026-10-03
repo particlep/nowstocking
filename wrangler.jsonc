@@ -41,6 +41,9 @@
     // Links shown on the sign-in screen and in Settings. Empty = hidden.
     "TERMS_URL": "",
     "PRIVACY_URL": "",
+    // Email sign-in only: when the terms last changed (YYYY-MM-DD). Anyone who accepted before then is asked to
+    // accept again. Empty = no terms to accept.
+    "TERMS_UPDATED_AT": "",
     // "single": self-hosted, everyone who gets past Access joins one account (first person is owner).
     // "open": hosted, each new user gets their own account.
     "SIGNUP_MODE": "single"
@@ -98,6 +101,7 @@
         "AI_MONTHLY_CAP_USD": "50",
         "TERMS_URL": "https://nowstocking.com/terms",
         "PRIVACY_URL": "https://nowstocking.com/privacy",
+        "TERMS_UPDATED_AT": "2026-10-02",
         "SIGNUP_MODE": "open"
       },
       "durable_objects": {

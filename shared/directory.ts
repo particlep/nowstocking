@@ -19,6 +19,8 @@ export interface MeResponse {
   accounts: AccountInfo[];
   /** The service operator: sees the admin page. */
   operator?: boolean;
+  /** The terms changed since this user last accepted them (email sign-in only). */
+  terms_required?: boolean;
 }
 
 /** Warehouse ids appear in label URLs: /w/<id>/loc/B03. */

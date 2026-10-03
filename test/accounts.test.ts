@@ -8,6 +8,7 @@ const EMAIL_MODE = {
   ...env, AUTH_MODE: 'email', SIGNUP_MODE: 'open', AUTH_SECRET: 'test-secret-that-is-long-enough-1234567890', EXPOSE_LOGIN_CODES: 'true',
 } as unknown as Env;
 const OPEN = { ...env, SIGNUP_MODE: 'open', EXPOSE_LOGIN_CODES: 'true' } as unknown as Env;
+const SIGNUP = { name: 'Test Builder', terms: true };
 
 let seq = 0;
 const email = (name: string) => `${name}-${++seq}@example.com`;
@@ -24,7 +25,7 @@ async function req(e: Env, path: string, init: RequestInit & { cookie?: string; 
 }
 
 async function signIn(address: string) {
-  const start = await req(EMAIL_MODE, '/api/auth/start', { method: 'POST', body: JSON.stringify({ email: address }) });
+  const start = await req(EMAIL_MODE, '/api/auth/start', { method: 'POST', body: JSON.stringify({ email: address, signup: SIGNUP }) });
   expect(start.res.status).toBe(200);
   const verify = await req(EMAIL_MODE, '/api/auth/verify', { method: 'POST', body: JSON.stringify({ email: address, code: start.body.code }) });
   expect(verify.res.status).toBe(200);
@@ -44,6 +45,31 @@ describe('email sign-in', () => {
     expect(body.accounts[0].role).toBe('owner');
   });
 
+  it('signs up with a name and accepted terms, then signs in again without them', async () => {
+    const address = email('newbie');
+    await signIn(address);
+    const user = await env.DB.prepare('SELECT name, terms_accepted_at FROM users WHERE email = ?').bind(address).first<{ name: string; terms_accepted_at: string }>();
+    expect(user?.name).toBe('Test Builder');
+    expect(user?.terms_accepted_at).toBeTruthy();
+    const again = await req(EMAIL_MODE, '/api/auth/start', { method: 'POST', body: JSON.stringify({ email: address }) });
+    expect(again.body.code).toMatch(/^\d{6}$/);
+  });
+
+  it("refuses to sign up without a name or without agreeing to the terms", async () => {
+    const start = (signup: unknown) => req(EMAIL_MODE, '/api/auth/start', { method: 'POST', body: JSON.stringify({ email: email('half'), signup }) });
+    expect((await start({ name: 'Pat', terms: false })).res.status).toBe(400);
+    expect((await start({ name: '  ', terms: true })).res.status).toBe(400);
+  });
+
+  it("answers a sign-in for an unknown email the same way, without sending a code", async () => {
+    const address = email('stranger');
+    const { res, body } = await req(EMAIL_MODE, '/api/auth/start', { method: 'POST', body: JSON.stringify({ email: address }) });
+    expect(res.status).toBe(200);
+    expect(body).toEqual({ ok: true });
+    const codes = await env.DB.prepare('SELECT COUNT(*) AS n FROM login_codes WHERE email = ?').bind(address).first<{ n: number }>();
+    expect(codes?.n).toBe(0);
+  });
+
   it('tells the app to show its sign-in screen when there is no session', async () => {
     const { res, body } = await req(EMAIL_MODE, '/api/me');
     expect(res.status).toBe(401);
@@ -53,7 +79,7 @@ describe('email sign-in', () => {
 
   it('rejects wrong codes, then locks the code after five tries', async () => {
     const address = email('guess');
-    const { body } = await req(EMAIL_MODE, '/api/auth/start', { method: 'POST', body: JSON.stringify({ email: address }) });
+    const { body } = await req(EMAIL_MODE, '/api/auth/start', { method: 'POST', body: JSON.stringify({ email: address, signup: SIGNUP }) });
     const wrong = String((Number(body.code) + 1) % 1_000_000).padStart(6, '0');
     for (let i = 0; i < 5; i++) {
       const r = await req(EMAIL_MODE, '/api/auth/verify', { method: 'POST', body: JSON.stringify({ email: address, code: wrong }) });
@@ -65,8 +91,8 @@ describe('email sign-in', () => {
 
   it('still accepts an earlier code after a new one is sent', async () => {
     const address = email('twice');
-    const first = await req(EMAIL_MODE, '/api/auth/start', { method: 'POST', body: JSON.stringify({ email: address }) });
-    await req(EMAIL_MODE, '/api/auth/start', { method: 'POST', body: JSON.stringify({ email: address }) });
+    const first = await req(EMAIL_MODE, '/api/auth/start', { method: 'POST', body: JSON.stringify({ email: address, signup: SIGNUP }) });
+    await req(EMAIL_MODE, '/api/auth/start', { method: 'POST', body: JSON.stringify({ email: address, signup: SIGNUP }) });
     const verify = await req(EMAIL_MODE, '/api/auth/verify', { method: 'POST', body: JSON.stringify({ email: address, code: first.body.code }) });
     expect(verify.res.status).toBe(200);
   });
@@ -75,7 +101,7 @@ describe('email sign-in', () => {
     const address = email('more-guesses');
     const codes: string[] = [];
     for (let i = 0; i < 3; i++) {
-      codes.push(String((await req(EMAIL_MODE, '/api/auth/start', { method: 'POST', body: JSON.stringify({ email: address }) })).body.code));
+      codes.push(String((await req(EMAIL_MODE, '/api/auth/start', { method: 'POST', body: JSON.stringify({ email: address, signup: SIGNUP }) })).body.code));
     }
     let wrong = 0;
     for (let n = 0; wrong < 5; n++) {
@@ -91,9 +117,9 @@ describe('email sign-in', () => {
   it('limits how many codes one address can request', async () => {
     const address = email('spam');
     for (let i = 0; i < 5; i++) {
-      expect((await req(EMAIL_MODE, '/api/auth/start', { method: 'POST', body: JSON.stringify({ email: address }) })).res.status).toBe(200);
+      expect((await req(EMAIL_MODE, '/api/auth/start', { method: 'POST', body: JSON.stringify({ email: address, signup: SIGNUP }) })).res.status).toBe(200);
     }
-    expect((await req(EMAIL_MODE, '/api/auth/start', { method: 'POST', body: JSON.stringify({ email: address }) })).res.status).toBe(429);
+    expect((await req(EMAIL_MODE, '/api/auth/start', { method: 'POST', body: JSON.stringify({ email: address, signup: SIGNUP }) })).res.status).toBe(429);
   });
 
   it('ends the session on sign-out', async () => {
@@ -198,5 +224,31 @@ describe('photo reading limits', () => {
 
     const usage = (await req(limited, `/api/accounts/${accountId}/usage`, { user })).body;
     expect(usage).toMatchObject({ photo_pages: 0, limit: 1 });
+  });
+});
+
+describe('terms updates', () => {
+  const UPDATED = { ...EMAIL_MODE, TERMS_UPDATED_AT: '2099-01-01' } as unknown as Env;
+
+  it('asks users who accepted before the terms changed to accept again, and blocks warehouses until they do', async () => {
+    const cookie = await signIn(email('returning'));
+    const before = (await req(EMAIL_MODE, '/api/me', { cookie })).body as unknown as MeResponse;
+    expect(before.terms_required).toBe(false);
+    const wid = before.accounts[0].warehouses[0].id;
+
+    const after = (await req(UPDATED, '/api/me', { cookie })).body as unknown as MeResponse;
+    expect(after.terms_required).toBe(true);
+    const blocked = await req(UPDATED, `/api/w/${wid}/sync?since=0`, { cookie });
+    expect(blocked.res.status).toBe(403);
+    expect(blocked.body.terms).toBe(true);
+
+    expect((await req(UPDATED, '/api/me/terms', { method: 'POST', cookie, body: JSON.stringify({ accept: false }) })).res.status).toBe(400);
+    // Terms that changed in 2020, accepted back in 2019: blocked until accepted again.
+    const y2020 = { ...EMAIL_MODE, TERMS_UPDATED_AT: '2020-01-01' } as unknown as Env;
+    await env.DB.prepare('UPDATE users SET terms_accepted_at = ? WHERE email = ?').bind('2019-06-01T00:00:00.000Z', before.user.email).run();
+    expect((await req(y2020, `/api/w/${wid}/sync?since=0`, { cookie })).res.status).toBe(403);
+    expect((await req(y2020, '/api/me/terms', { method: 'POST', cookie, body: JSON.stringify({ accept: true }) })).res.status).toBe(200);
+    expect(((await req(y2020, '/api/me', { cookie })).body as unknown as MeResponse).terms_required).toBe(false);
+    expect((await req(y2020, `/api/w/${wid}/sync?since=0`, { cookie })).res.status).toBe(200);
   });
 });

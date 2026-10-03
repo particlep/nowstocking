@@ -16,6 +16,7 @@ import { turnstileSitekey, verifyTurnstile } from './turnstile';
 import { getUsage, recordPhotoPages } from './usage';
 import { aiStatus, alertSignup, assertAiAllowed, operatorEmails } from './aiBudget';
 import { admin } from './admin';
+import { termsRequired } from './terms';
 
 const app = new Hono<AppEnv>().basePath('/api');
 
@@ -57,13 +58,15 @@ app.use('/auth/:step{start|verify}', async (c, next) => {
 
 app.post('/auth/start', async (c) => {
   if (authMode(c.env) !== 'email') return c.json({ error: 'This install signs in through Cloudflare Access.' }, 400);
-  const body = await c.req.json<{ email?: string; turnstile?: string }>().catch(() => ({}) as { email?: string; turnstile?: string });
+  type Start = { email?: string; turnstile?: string; signup?: { name?: unknown; terms?: unknown } };
+  const body = await c.req.json<Start>().catch(() => ({}) as Start);
   // Bot check before any email is sent.
   if (turnstileSitekey(c.env) && !(await verifyTurnstile(c.env, body.turnstile, 'signin', c.req.header('CF-Connecting-IP')))) {
     return c.json({ error: "We couldn't confirm you're not a bot. Try the check again.", turnstile: true }, 403);
   }
   try {
-    return c.json({ ok: true, ...(await startLogin(c.env, body.email ?? '')) });
+    const signup = body.signup ? { name: String(body.signup.name ?? ''), terms: body.signup.terms === true } : undefined;
+    return c.json({ ok: true, ...(await startLogin(c.env, body.email ?? '', signup)) });
   } catch (e) {
     if (e instanceof AuthError) return c.json({ error: e.message }, e.status);
     throw e;
@@ -105,8 +108,21 @@ app.get('/me', async (c) => {
   const mode = (c.env.SIGNUP_MODE as string) === 'open' ? 'open' : 'single';
   const { userId, created } = await provision(c.env.DB, c.get('email'), mode);
   const me = await describe(c.env.DB, userId, c.get('email'));
+  const user = await c.env.DB.prepare('SELECT terms_accepted_at FROM users WHERE id = ?').bind(userId).first<{ terms_accepted_at: string | null }>();
   if (created) await inBackground(c, alertSignup(c.env, userId, c.get('email'), me.accounts.map((a) => a.name)));
-  return c.json({ ...me, operator: operatorEmails(c.env).includes(c.get('email')) });
+  return c.json({
+    ...me,
+    operator: operatorEmails(c.env).includes(c.get('email')),
+    terms_required: termsRequired(c.env, user?.terms_accepted_at),
+  });
+});
+
+/** Accept the current terms. The body must say { "accept": true }. */
+app.post('/me/terms', async (c) => {
+  const body = await c.req.json<{ accept?: unknown }>().catch(() => ({}) as { accept?: unknown });
+  if (body.accept !== true) return c.json({ error: 'Tick the box to accept the terms.' }, 400);
+  await c.env.DB.prepare('UPDATE users SET terms_accepted_at = ? WHERE email = ?').bind(new Date().toISOString(), c.get('email')).run();
+  return c.json({ ok: true });
 });
 
 /** Delete my account. The body must say { "confirm": "DELETE" }. */
@@ -180,7 +196,7 @@ app.post('/accounts/:accountId/invites', (c) =>
     const account = await c.env.DB.prepare('SELECT name FROM accounts WHERE id = ?').bind(accountId).first<{ name: string }>();
     const url = new URL(c.req.url).origin;
     const how = authMode(c.env) === 'email'
-      ? `Open ${url} and sign in with ${email}.`
+      ? `Sign up at ${url}/signup with ${email} to join.`
       : `Open ${url} and sign in with ${email}. If you can't get in, ask ${c.get('email')} to add you to the sign-in policy.`;
     let emailed = false;
     if ((c.env as { EXPOSE_LOGIN_CODES?: string }).EXPOSE_LOGIN_CODES !== 'true') {
@@ -237,6 +253,7 @@ w.use('*', async (c, next) => {
   if (!WAREHOUSE_ID.test(wid)) return c.json({ error: 'not found' }, 404);
   const access = await warehouseRole(c.env.DB, c.get('email'), wid);
   if (!access) return c.json({ error: 'not found' }, 404);
+  if (termsRequired(c.env, access.terms_accepted_at)) return c.json({ error: 'Accept the updated Terms to keep using NowStocking.', terms: true }, 403);
   const stub = c.env.WAREHOUSE.get(c.env.WAREHOUSE.idFromName(wid));
   c.set('warehouse', { id: wid, role: access.role, accountId: access.account_id, stub });
   return next();

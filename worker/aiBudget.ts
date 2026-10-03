@@ -106,8 +106,9 @@ async function alertOnce(env: Env, key: string, subject: string, text: string) {
 /** Tell the operators someone new signed in for the first time. */
 export async function alertSignup(env: Env, userId: string, email: string, workshops: string[]) {
   const users = await env.DB.prepare('SELECT COUNT(*) AS n FROM users').first<{ n: number }>();
+  const user = await env.DB.prepare('SELECT name FROM users WHERE id = ?').bind(userId).first<{ name: string | null }>();
   await alertOnce(env, `signup:${userId}`, `New sign-up: ${email}`,
-    `${email} just signed up for NowStocking.\n\n` +
+    `${user?.name ? `${user.name} (${email})` : email} just signed up for NowStocking.\n\n` +
     `Workshop: ${workshops.join(', ') || 'none yet'}\n` +
     `Users in total: ${users?.n ?? '?'}`);
 }
