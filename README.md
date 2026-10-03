@@ -35,11 +35,16 @@ machines and furniture.
 - **Import packing lists from photos.** Pages are read in the background by Claude. Lines that were hard to read are flagged for a quick review against the photo.
 - **Find any part fast.** Type `470ad45` and get `AN470AD4-5` with its bin, in big type. A part that shipped in two kits shows both locations.
 - **Label and scan.** Print QR labels on Avery 5160 (bins) or 5163 (shelves) sheets. Scanning a label opens that bin's contents.
+- **Set up a whole shelf at once.** Give a prefix, rows and columns, and get every location with its description: `S2-1A` "Shelf 2, 1A" through `S2-5D`. Bins come out as `B01`, `B02`…
 - **Put away in bulk.** Scan a bin once, then tap bags and parts as they go in. A bag's location covers every part inside it.
 - **Pick lists from the plans.** Photograph an instruction page and get every part it calls for, matched to where it's stored.
-- **Receiving, consumed and left, moves and splits, CSV export, emailed label PDFs.**
+- **Receiving.** Check a kit against its packing list, with search and To check / Received / Problems filters. Record short shipments ("3 of 5 arrived"): they're marked backordered, and what's left is counted from what arrived.
+- **A photo of every part.** Take or pick one on the part's page or while receiving. Search results show thumbnails, and they work offline too.
+- **Export the whole list.** A CSV with every kit, bag and part: shipped, received, short, consumed and remaining quantities, status, locations and their descriptions. It's built on the phone, so it works offline.
+- **Consumed and left, moves and splits, emailed label PDFs.**
 - **Works offline.** Everything lives on the phone. Edits queue up and sync when you're back online.
 - **Installs from the browser.** No App Store: on iPhone, open it in Safari and tap Share → Add to Home Screen. It then opens full-screen like any other app.
+- **Phone or computer.** On a wide screen, a sidebar with every section replaces the phone's tab bar.
 
 ## How it's built
 
@@ -52,7 +57,7 @@ machines and furniture.
  │ Search, QR scan, PDFs      │   sync     │   ├─ Durable Object per warehouse:        │
  └────────────────────────────┘            │   │    inventory, sync, change log        │
                                            │   ├─ D1: users, accounts, warehouses      │
-                                           │   ├─ R2: packing list / plans photos      │
+                                           │   ├─ R2: packing list, plans, part photos │
                                            │   ├─ Workflows: read photos with Claude   │
                                            │   └─ Email: codes, invites, label PDFs    │
                                            └───────────────────────────────────────────┘
@@ -108,6 +113,7 @@ All of these are `vars` in `wrangler.jsonc`:
 | `TURNSTILE_SITEKEY` | `""`: off | A [Turnstile](https://developers.cloudflare.com/turnstile/) sitekey. The bot check runs on "Email me a code" |
 | `TURNSTILE_HOSTNAMES` | `""` | The site's hostnames, comma-separated. A token from any other hostname is refused |
 | `TERMS_URL`, `PRIVACY_URL` | `""`: hidden | Links shown on the sign-in screen and in Settings |
+| `TERMS_UPDATED_AT` | `""`: no terms to accept | When the terms last changed (`YYYY-MM-DD`). Email sign-in only: sign-up requires accepting the terms, and anyone who accepted before this date must accept again before using a warehouse |
 | `AI_ALLOWANCE_USD` | `"0"`: unlimited | Each account's lifetime free Claude allowance, in USD. Photo reading stops when it's used up |
 | `AI_MONTHLY_CAP_USD` | `"0"`: unlimited | Claude spend across all accounts per month. Photo reading pauses for everyone when it's reached |
 
@@ -122,6 +128,11 @@ reached. Email sign-in requests are also limited to 10 a minute per IP address (
 sign-in also needs a secret: `openssl rand -base64 48 | npx wrangler secret put AUTH_SECRET`. Codes and session
 tokens are stored only as hashes. Codes expire after 10 minutes and lock after 5 wrong tries, and each address can
 request 5 codes an hour. With email sign-in, don't put Access in front of the app.
+
+New users sign up at `/signup` with a name, an email and the terms, including a note that photos are read by
+third-party AI services. Signing in emails a code only to registered addresses, but answers the same either way, so
+the form doesn't reveal who has an account. To change the terms, edit `site/public/terms.html`, set
+`TERMS_UPDATED_AT` to that date and deploy: everyone who accepted earlier is asked to accept again.
 
 ## Project layout
 
@@ -262,8 +273,11 @@ with the D1 migrations applied to a fresh local database:
   - Accounts can't reach each other's warehouses or photos.
   - Warehouses keep separate inventories.
   - Mutations are idempotent, merge per field, and roll back completely when rejected.
-  - Deletes sync as tombstones, large imports apply in one request, the change history records moves, and CSV export works.
-- **`test/shared.test.ts`**: inventory rules. Effective location (bag inheritance, overrides, splits), remaining counts, and CSV.
+  - Deletes sync as tombstones, and a deleted location's or kit's code can be used again.
+  - Large imports apply in one request, the change history records moves, and CSV export works.
+  - Part photos are stored per warehouse, served only to its members, and deleted with the photo.
+- **`test/shared.test.ts`**: inventory rules. Effective location (bag inheritance, overrides, splits), remaining counts
+  from what arrived, the CSV export's columns, and shelf grids of locations.
 - **`test/search.test.ts`**: search ranking, and matching plans part numbers to inventory.
 - **`test/ai.test.ts`**: Claude cost tracking. Calls are priced from token counts, an account is cut off when its
   allowance is used up, everyone pauses at the monthly cap, operators are alerted once, and the Admin screen is
