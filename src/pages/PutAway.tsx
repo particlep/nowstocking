@@ -5,7 +5,7 @@ import type { Op } from '../../shared/schema';
 import { LocationPicker } from '../components/LocationPicker';
 import { parseLocationLabel, Scanner } from '../components/Scanner';
 import { Page } from '../components/chrome';
-import { CheckIcon, PlusIcon, ScanIcon, SearchIcon, UndoIcon } from '../components/icons';
+import { CheckIcon, PlusIcon, SearchIcon, UndoIcon } from '../components/icons';
 import { createLocation, guessLocationType, putAway, undo } from '../data/actions';
 import { catalog } from '../data/store';
 import { warehouseId } from '../data/workspace';
@@ -17,7 +17,8 @@ export function PutAwayPage() {
   const { query } = useLocation();
   const cat = catalog.value;
   const [locId, setLocId] = useState<number | null>(() => (query.loc ? cat.locationsByCode.get(query.loc)?.id ?? null : null));
-  const [picking, setPicking] = useState<'scan' | 'type'>('scan');
+  // Scanning needs a camera; on a computer, start with search.
+  const [picking, setPicking] = useState<'scan' | 'type'>(() => (matchMedia('(pointer: fine)').matches ? 'type' : 'scan'));
   const [q, setQ] = useState('');
   const [placed, setPlaced] = useState<Placed[]>([]);
   const [wrongWarehouse, setWrongWarehouse] = useState<string | null>(null);
@@ -41,10 +42,10 @@ export function PutAwayPage() {
   if (!loc) {
     return (
       <Page title="Put away">
-        <p class="muted" style={{ margin: 0 }}>Scan where you're putting things. Everything you add goes there until you pick a new spot.</p>
+        <p class="muted" style={{ margin: 0 }}>Scan or search for where you're putting things. Everything you add goes there until you pick a new spot.</p>
         <div class="seg">
           <button class={picking === 'scan' ? 'on' : ''} onClick={() => setPicking('scan')}>Scan label</button>
-          <button class={picking === 'type' ? 'on' : ''} onClick={() => setPicking('type')}>Type code</button>
+          <button class={picking === 'type' ? 'on' : ''} onClick={() => setPicking('type')}>Search locations</button>
         </div>
         {picking === 'scan' ? (
           <>
@@ -85,7 +86,7 @@ export function PutAwayPage() {
           <div class="hero-kicker" style={{ color: 'var(--accent)' }}>Putting into</div>
           <div class="meta" style={{ fontSize: '14px' }}>{loc.description ?? loc.type}</div>
         </div>
-        <button class="icon-btn lg" aria-label="Choose a different location" onClick={() => setLocId(null)}><ScanIcon /></button>
+        <button class="btn" aria-label="Choose a different location" onClick={() => setLocId(null)}>Change</button>
       </section>
 
       <label class="search">

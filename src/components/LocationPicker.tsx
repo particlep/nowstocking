@@ -9,13 +9,14 @@ export function LocationPicker({ onPick, exclude = [] }: { onPick: (locationId: 
   const [q, setQ] = useState('');
   const cat = catalog.value;
   const list = searchLocations(cat, q).filter((l) => !exclude.includes(l.id)).slice(0, 30);
-  const code = normalizeLocationCode(q);
+  // Offer to create only what looks like a code (B03, S2-1A), not a description search like "Shelf 1, 2".
+  const code = /^[A-Za-z0-9-]+$/.test(q.trim()) ? normalizeLocationCode(q) : '';
   const exists = code && cat.locationsByCode.has(code);
   return (
     <div class="stack">
       <input
-        class="input"
-        placeholder="Location code, e.g. B03"
+        class="input" type="search" aria-label="Search locations"
+        placeholder="Search, e.g. S2-1A or Shelf 2"
         value={q}
         autoCapitalize="characters"
         autoCorrect="off"
@@ -35,7 +36,8 @@ export function LocationPicker({ onPick, exclude = [] }: { onPick: (locationId: 
             + Create location <strong>{code}</strong> <span class="muted small">({guessLocationType(code)})</span>
           </button>
         )}
-        {!list.length && !code && <div class="list-item muted">No locations yet. Type a code to create one.</div>}
+        {!list.length && !q.trim() && <div class="list-item muted">No locations yet. Type a code to create one.</div>}
+        {!list.length && q.trim() && !code && <div class="list-item muted">No locations match "{q.trim()}".</div>}
       </div>
     </div>
   );
