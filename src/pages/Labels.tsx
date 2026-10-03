@@ -17,6 +17,7 @@ export function LabelsPage() {
   const [selected, setSelected] = useState<Set<number>>(() => new Set(pre ? [pre.id] : []));
   const [tid, setTid] = useState<Template['id']>(pre && pre.type !== 'bin' ? '5163' : '5160');
   const [start, setStart] = useState(0);
+  const [q, setQ] = useState('');
   const [outlines, setOutlines] = useState(false);
   const [showDesc, setShowDesc] = useState(false);
   const [emailOn, setEmailOn] = useState(false);
@@ -35,6 +36,23 @@ export function LabelsPage() {
     if (!emailTo && me.value.includes('@')) setEmailTo(me.value);
   }, [me.value]);
   const perSheet = t.cols * t.rows;
+
+  // Narrow the list by code, description or type. Selections outside the search are kept.
+  // The whole search as typed, so "Shelf 2" finds "Shelf 2, 1A" but not "Shelf 1, 2A".
+  const needle = q.trim().toLowerCase();
+  const bare = needle.replace(/[^a-z0-9]/g, '');
+  const words = needle ? [needle] : [];
+  const shown = needle
+    ? locations.filter((l) =>
+      l.code.toLowerCase().includes(needle) || (!!bare && l.code.toLowerCase().replace(/[^a-z0-9]/g, '').includes(bare))
+      || l.type.includes(needle) || (l.description ?? '').toLowerCase().includes(needle))
+    : locations;
+  const hiddenSelected = words.length ? [...selected].filter((id) => !shown.some((l) => l.id === id)).length : 0;
+  const addShown = (on: boolean) => {
+    const n = new Set(selected);
+    for (const l of shown) { if (on) n.add(l.id); else n.delete(l.id); }
+    setSelected(n);
+  };
 
   const toggle = (id: number) => {
     const n = new Set(selected);
@@ -105,14 +123,28 @@ export function LabelsPage() {
         <p class="muted">No locations yet. <a href="/locations">Add some</a> first.</p>
       ) : (
         <>
-          <div class="row wrap">
-            <button class="btn small" onClick={() => setSelected(new Set(locations.map((l) => l.id)))}>All</button>
-            <button class="btn small" onClick={() => setSelected(new Set(locations.filter((l) => l.type === 'bin').map((l) => l.id)))}>Bins</button>
-            <button class="btn small" onClick={() => setSelected(new Set(locations.filter((l) => l.type !== 'bin').map((l) => l.id)))}>Shelves & other</button>
-            <button class="btn small" onClick={() => setSelected(new Set())}>None</button>
-          </div>
-          <div class="list">
-            {locations.map((l) => (
+          <input
+            class="input" type="search" placeholder="Search, e.g. S2, RB-1 or Shelf 2" aria-label="Search locations"
+            autoCorrect="off" spellcheck={false} value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)}
+          />
+          {words.length ? (
+            <div class="row wrap">
+              <button class="btn small" disabled={!shown.length} onClick={() => addShown(true)}>Select {shown.length} shown</button>
+              <button class="btn small" disabled={!shown.some((l) => selected.has(l.id))} onClick={() => addShown(false)}>Unselect shown</button>
+              <button class="btn small" onClick={() => setQ('')}>Clear search</button>
+            </div>
+          ) : (
+            <div class="row wrap">
+              <button class="btn small" onClick={() => setSelected(new Set(locations.map((l) => l.id)))}>All</button>
+              <button class="btn small" onClick={() => setSelected(new Set(locations.filter((l) => l.type === 'bin').map((l) => l.id)))}>Bins</button>
+              <button class="btn small" onClick={() => setSelected(new Set(locations.filter((l) => l.type !== 'bin').map((l) => l.id)))}>Shelves & other</button>
+              <button class="btn small" onClick={() => setSelected(new Set())}>None</button>
+            </div>
+          )}
+          {hiddenSelected > 0 && <p class="meta" style={{ margin: '0 4px' }}>Plus {hiddenSelected} selected that this search hides. They're still printed.</p>}
+          {words.length > 0 && !shown.length && <p class="muted center small">No locations match "{q.trim()}".</p>}
+          <div class="list" hidden={!shown.length}>
+            {shown.map((l) => (
               <label class="list-item row">
                 <input type="checkbox" checked={selected.has(l.id)} onChange={() => toggle(l.id)} />
                 <span class="tag sm">{l.code}</span>
