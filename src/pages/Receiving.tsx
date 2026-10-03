@@ -41,12 +41,16 @@ export function ReceivingListPage() {
   );
 }
 
-type Filter = 'all' | 'todo' | 'received' | 'problems';
-const FILTERS: [Filter, string][] = [['all', 'All'], ['todo', 'To check'], ['received', 'Received'], ['problems', 'Problems']];
+type Filter = 'all' | 'todo' | 'received' | 'unplaced' | 'problems';
+const FILTERS: [Filter, string][] = [
+  ['all', 'All'], ['todo', 'To check'], ['received', 'Received'], ['unplaced', 'Received, no location'], ['problems', 'Problems'],
+];
 const FILTER: Record<Filter, (i: Item) => boolean> = {
   all: () => true,
   todo: (i) => i.status === 'expected',
   received: (i) => i.status === 'received',
+  // Arrived but not put away yet. A part in a bag that's been put away counts as placed. Sub-kits aren't stored.
+  unplaced: (i) => i.status === 'received' && i.item_type !== 'subkit' && !effectiveLocation(catalog.value, i).placements.length,
   problems: (i) => PROBLEM_STATUSES.includes(i.status),
 };
 

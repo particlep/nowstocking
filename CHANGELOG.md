@@ -5,6 +5,9 @@ the bottom of More and on the sign-in screen. Versions that only changed the web
 listed. The app's What's new screen (Settings) is built from this file: keep the `## <version> · <date>` headings
 and one change per bullet.
 
+## 48 · 2026-10-03
+- Receiving: a "Received, no location" filter lists what has arrived but hasn't been put away yet.
+
 ## 47 · 2026-10-03
 - Settings shows the version number and a What's new list of recent versions.
 - After an update, a short note says what's new in the version you just got.
