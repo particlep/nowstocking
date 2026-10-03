@@ -23,10 +23,10 @@ export interface GridLocation {
 
 export const MAX_GRID = 500;
 
-/** Bins are B01, B02…; everything else is unpadded, unless the numbers run past 9. */
+/** Bins in a single column are B01, B02…; anything with columns (RB-1A) is unpadded, unless the numbers run past 9. */
 function rowLabel(n: number, spec: GridSpec) {
   const last = spec.start + spec.rows - 1;
-  const width = Math.max(String(last).length, spec.type === 'bin' ? 2 : 1);
+  const width = Math.max(String(last).length, spec.type === 'bin' && spec.cols <= 1 ? 2 : 1);
   return String(n).padStart(width, '0');
 }
 

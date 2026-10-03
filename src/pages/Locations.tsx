@@ -5,6 +5,8 @@ import { normalizeLocationCode } from '../../shared/normalize';
 import { LOCATION_TYPES, type LocationType } from '../../shared/schema';
 import { Page } from '../components/chrome';
 import { createLocation, createLocations, guessLocationType } from '../data/actions';
+import { commit, deleteOp } from '../data/mutate';
+import type { Location } from '../../shared/schema';
 import { catalog } from '../data/store';
 
 export function LocationsPage() {
@@ -46,20 +48,7 @@ export function LocationsPage() {
         >Add location</button>
         <p class="small muted">Bins B01, B02…; shelves S1-A (unit 1, top level); large parts CRATE-1, RACK-1.</p>
       </div>}
-      {locations.length > 0 && (
-        <div class="list">
-          {locations.map((l) => {
-            const n = itemsAtLocation(cat, l.id).filter((e) => e.item.item_type === 'part').length;
-            return (
-              <a class="list-item row" href={`/loc/${encodeURIComponent(l.code)}`}>
-                <span style={{ minWidth: '84px' }}><span class="tag sm">{l.code}</span></span>
-                <span class="grow small muted">{l.type}{l.description ? ` · ${l.description}` : ''}</span>
-                <span class="small muted">{n} part{n === 1 ? '' : 's'}</span>
-              </a>
-            );
-          })}
-        </div>
-      )}
+      {locations.length > 0 && <LocationList locations={locations} />}
     </Page>
   );
 }
@@ -131,12 +120,15 @@ function GridForm() {
           <div class="section-title" style={{ margin: '8px 4px 0' }}>
             Preview · {fresh.length} new{all.length > fresh.length ? ` · ${all.length - fresh.length} already exist` : ''}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${gridCols}, minmax(0, max-content))`, gap: '6px', overflowX: 'auto', maxHeight: '260px', overflowY: 'auto' }}>
-            {all.map((l) => (
-              <span class="tag sm" title={l.description ?? undefined}
-                style={cat.locationsByCode.has(l.code) ? { opacity: 0.35, textDecoration: 'line-through' } : undefined}>{l.code}</span>
-            ))}
+          <div style={{ overflow: 'auto', maxHeight: '260px', paddingBottom: '4px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${gridCols}, max-content)`, gap: '6px', width: 'max-content' }}>
+              {all.map((l) => (
+                <span class="tag sm" title={l.description ?? undefined}
+                  style={{ fontSize: '15px', padding: '4px 7px', ...(cat.locationsByCode.has(l.code) ? { opacity: 0.35, textDecoration: 'line-through' } : {}) }}>{l.code}</span>
+              ))}
+            </div>
           </div>
+          {gridCols > 4 && <p class="meta" style={{ margin: '0 4px' }}>Scroll sideways to see every column.</p>}
           {all[0].description && <p class="small muted" style={{ margin: '4px' }}>{all[0].code}: {all[0].description}</p>}
         </>
       )}
@@ -156,5 +148,87 @@ function GridForm() {
         }}
       >{fresh.length ? `Add ${fresh.length} location${fresh.length === 1 ? '' : 's'}` : 'Nothing new to add'}</button>
     </div>
+  );
+}
+
+/** Every location, with a delete button on the empty ones, and a select mode to delete several at once. */
+function LocationList({ locations }: { locations: Location[] }) {
+  const cat = catalog.value;
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<Set<number>>(new Set());
+  // Anything stored here, directly or inside a bag that's here, keeps the location from being deleted.
+  const stored = (id: number) => itemsAtLocation(cat, id).length;
+  const empty = locations.filter((l) => stored(l.id) === 0);
+  const chosen = locations.filter((l) => picked.has(l.id) && stored(l.id) === 0);
+
+  const remove = async (locs: Location[]) => {
+    const label = locs.length === 1 ? `Delete location ${locs[0].code}` : `Delete ${locs.length} locations`;
+    if (!confirm(locs.length === 1 ? `Delete ${locs[0].code}?` : `Delete ${locs.length} empty locations?`)) return;
+    await commit(label, locs.map((l) => deleteOp('locations', l.id)));
+    setPicked(new Set());
+    setSelecting(false);
+  };
+  const toggle = (id: number) => {
+    const next = new Set(picked);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setPicked(next);
+  };
+
+  return (
+    <>
+      <div class="row" style={{ margin: '18px 4px 0' }}>
+        <div class="section-title grow" style={{ margin: 0 }}>{locations.length} location{locations.length === 1 ? '' : 's'}</div>
+        {selecting ? (
+          <>
+            <button class="btn small" onClick={() => setPicked(picked.size >= empty.length ? new Set() : new Set(empty.map((l) => l.id)))}>
+              {picked.size >= empty.length && empty.length ? 'Select none' : `Select all empty (${empty.length})`}
+            </button>
+            <button class="btn small" onClick={() => { setSelecting(false); setPicked(new Set()); }}>Cancel</button>
+          </>
+        ) : (
+          <button class="btn small" disabled={!empty.length} onClick={() => setSelecting(true)}>Select</button>
+        )}
+      </div>
+      <div class="list">
+        {locations.map((l) => {
+          const n = itemsAtLocation(cat, l.id).filter((e) => e.item.item_type === 'part').length;
+          const isEmpty = stored(l.id) === 0;
+          const body = (
+            <>
+              <span style={{ minWidth: '84px' }}><span class="tag sm">{l.code}</span></span>
+              <span class="grow small muted">{l.type}{l.description ? ` · ${l.description}` : ''}</span>
+              <span class="small muted">{isEmpty ? 'Empty' : `${n} part${n === 1 ? '' : 's'}`}</span>
+            </>
+          );
+          if (selecting) {
+            return (
+              <label class="list-item row" style={{ opacity: isEmpty ? 1 : 0.5 }}>
+                <input
+                  type="checkbox" class="check" disabled={!isEmpty} checked={picked.has(l.id)} onChange={() => toggle(l.id)}
+                  aria-label={isEmpty ? `Select ${l.code}` : `${l.code} has parts and can't be deleted`}
+                />
+                {body}
+              </label>
+            );
+          }
+          return (
+            <div class="list-item row">
+              <a class="row grow" style={{ color: 'inherit', textDecoration: 'none', minWidth: 0 }} href={`/loc/${encodeURIComponent(l.code)}`}>{body}</a>
+              {isEmpty && (
+                <button class="btn small danger" aria-label={`Delete ${l.code}`} onClick={() => void remove([l])}>Delete</button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {selecting && (
+        <div class="action-bar">
+          <button class="btn danger block" disabled={!chosen.length} onClick={() => void remove(chosen)}>
+            {chosen.length ? `Delete ${chosen.length} location${chosen.length === 1 ? '' : 's'}` : 'Select empty locations to delete'}
+          </button>
+          <p class="meta center" style={{ margin: 0 }}>Locations with parts in them can't be deleted. Move the parts first.</p>
+        </div>
+      )}
+    </>
   );
 }

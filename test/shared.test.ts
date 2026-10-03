@@ -131,6 +131,7 @@ describe('location grids', () => {
     expect(gridLocations({ type: 'bin', prefix: 'b', describe: '', rows: 3, cols: 1, start: 21 }).map((l) => [l.code, l.description]))
       .toEqual([['B21', null], ['B22', null], ['B23', null]]);
     expect(gridLocations({ type: 'bin', prefix: 'B', describe: '', rows: 2, cols: 0, start: 1 }).map((l) => l.code)).toEqual(['B01', 'B02']);
+    expect(gridLocations({ type: 'bin', prefix: 'RB-', describe: '', rows: 4, cols: 8, start: 1 }).map((l) => l.code).slice(0, 2)).toEqual(['RB-1A', 'RB-1B']);
   });
 
   it('refuses empty or oversized grids', () => {
