@@ -5,7 +5,7 @@ import {
 import changelogText from '../CHANGELOG.md?raw';
 import { newSince, parseChangelog } from '../shared/changelog';
 import { defaultPrefix, describePrefix, gridLocations } from '../shared/locationGrid';
-import { normalizeLocationCode, toSearchKey } from '../shared/normalize';
+import { normalizeLocationCode, partFromBarcode, toSearchKey } from '../shared/normalize';
 import { newId } from '../shared/schema';
 import { placement, sampleCatalog } from './fixtures';
 
@@ -27,6 +27,25 @@ describe('normalize', () => {
       expect(Number.isSafeInteger(id)).toBe(true);
       expect(id).toBeGreaterThan(2 ** 32 - 1);
     }
+  });
+});
+
+describe('part from barcode', () => {
+  const keys = ['AN470AD45', 'BAG1118', 'VA140', 'W1010'];
+  it('reads a barcode that is just the part number', () => {
+    expect(partFromBarcode('AN470AD4-5', keys)).toBe('AN470AD4-5');
+    expect(partFromBarcode(' an470ad4-5 ', keys)).toBe('an470ad4-5');
+  });
+  it('finds the part number among other fields', () => {
+    expect(partFromBarcode('BAG 1118', keys)).toBe('BAG 1118');
+    expect(partFromBarcode('VA-140 QTY 2', keys)).toBe('VA-140');
+    expect(partFromBarcode('12345|W-1010|1', keys)).toBe('W-1010');
+  });
+  it('finds a part number run together with other text', () => {
+    expect(partFromBarcode('PO998877W1010X1', keys)).toBe('W1010');
+  });
+  it('falls back to the text as scanned', () => {
+    expect(partFromBarcode('F-1234', keys)).toBe('F-1234');
   });
 });
 

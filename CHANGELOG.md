@@ -5,6 +5,9 @@ the bottom of More and on the sign-in screen. Versions that only changed the web
 listed. The app's What's new screen (Settings) is built from this file: keep the `## <version> · <date>` headings
 and one change per bullet.
 
+## 49 · 2026-10-04
+- Receiving: scan the barcode on a part or bag label to find it in the kit. The scan button is next to the search box.
+
 ## 48 · 2026-10-03
 - Receiving: a "Received, no location" filter lists what has arrived but hasn't been put away yet.
 

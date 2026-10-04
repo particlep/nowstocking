@@ -343,6 +343,8 @@ button.list-item { width: 100%; text-align: left; background: none; border: 0; }
 /* ---- Scanner ---- */
 .scanner { position: relative; width: 100%; aspect-ratio: 3 / 4; max-height: 62dvh; background: #000; border-radius: 22px; overflow: hidden; }
 .scanner video { width: 100%; height: 100%; object-fit: cover; }
+.scanner.barcode { aspect-ratio: 4 / 3; max-height: 40dvh; }
+.scanner.barcode::after { inset: 34% 8%; }
 .scanner::after {
   content: ''; position: absolute; inset: 22% 16%; border-radius: 18px;
   border: 3px solid rgb(255 255 255 / 0.85); box-shadow: 0 0 0 999px rgb(0 0 0 / 0.25);
