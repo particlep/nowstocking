@@ -6,6 +6,7 @@ import { CloseIcon, SearchIcon } from '../components/icons';
 import { getMeta, setMeta } from '../data/idb';
 import { catalog, loaded } from '../data/store';
 import { search } from '../lib/search';
+import { ScanPartButton } from '../components/PartScanner';
 import { allWarehouses, current } from '../data/workspace';
 
 const MAX_RECENT = 12;
@@ -44,26 +45,29 @@ export function SearchPage() {
           {current.value.warehouse.name} · switch
         </a>
       )}
-      <label class="search">
-        <SearchIcon />
-        <input
-          ref={input}
-          type="search"
-          inputMode="search"
-          aria-label="Part number"
-          placeholder="Part or bag number"
-          autoCapitalize="characters"
-          autoCorrect="off"
-          spellcheck={false}
-          value={q}
-          onInput={(e) => setQ((e.target as HTMLInputElement).value)}
-        />
-        {q && (
-          <button type="button" class="icon-btn" aria-label="Clear search" onClick={() => { setQ(''); input.current?.focus(); }}>
-            <CloseIcon />
-          </button>
-        )}
-      </label>
+      <div class="row">
+        <label class="search grow">
+          <SearchIcon />
+          <input
+            ref={input}
+            type="search"
+            inputMode="search"
+            aria-label="Part number"
+            placeholder="Part or bag number"
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellcheck={false}
+            value={q}
+            onInput={(e) => setQ((e.target as HTMLInputElement).value)}
+          />
+          {q && (
+            <button type="button" class="icon-btn" aria-label="Clear search" onClick={() => { setQ(''); input.current?.focus(); }}>
+              <CloseIcon />
+            </button>
+          )}
+        </label>
+        <ScanPartButton parts={() => catalog.value.items.values()} onScan={setQ} />
+      </div>
 
       {!loaded.value ? null : q.trim().length < 2 ? (
         <>

@@ -45,6 +45,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,wasm}'],
+        // The OCR engine is ~7 MB: cached the first time someone scans text, not on install.
+        globIgnores: ['ocr/**'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/cdn-cgi\//],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
@@ -54,6 +56,11 @@ export default defineConfig({
         // Part photos never change once stored (a new photo gets a new id), so keep every one that's been shown.
         // Thumbnails in search then work offline too.
         runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/ocr/'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'ocr-engine', cacheableResponse: { statuses: [200] } },
+          },
           {
             urlPattern: ({ url }) => /^\/api\/w\/[^/]+\/photos\/[^/]+\/(full|thumb)$/.test(url.pathname),
             handler: 'CacheFirst',

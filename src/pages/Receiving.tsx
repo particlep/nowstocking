@@ -1,15 +1,15 @@
 import { useState } from 'preact/hooks';
 import { useRoute } from 'preact-iso';
 import { effectiveLocation, fmtQty, formatLocations } from '../../shared/inventory';
-import { partFromBarcode, toSearchKey } from '../../shared/normalize';
+import { toSearchKey } from '../../shared/normalize';
 import { PROBLEM_STATUSES, type Item, type ItemStatus } from '../../shared/schema';
 import { StatusBadge } from '../components/ItemRow';
 import { PhotoButton } from '../components/PhotoButton';
 import { openPhoto } from '../components/PhotoViewer';
 import { photoUrl } from '../data/photos';
 import { Page } from '../components/chrome';
-import { CheckIcon, MoreIcon, ScanIcon } from '../components/icons';
-import { BarcodeScanner } from '../components/BarcodeScanner';
+import { CheckIcon, MoreIcon } from '../components/icons';
+import { ScanPartButton } from '../components/PartScanner';
 import { createLocation, guessLocationType, putAway, setReceivedQty, setStatus } from '../data/actions';
 import { LocationPicker } from '../components/LocationPicker';
 import { parseLocationLabel, Scanner } from '../components/Scanner';
@@ -62,7 +62,6 @@ export function ReceivingKitPage() {
   const [show, setShow] = useState<Filter>('all');
   const [q, setQ] = useState('');
   const [open, setOpen] = useState<number | null>(null);
-  const [scanning, setScanning] = useState(false);
   if (!loaded.value) return <Page title="Receiving" back>{null}</Page>;
   if (!kit) return <Page title="Receiving" back><p class="muted center">Kit not found.</p></Page>;
 
@@ -126,22 +125,8 @@ export function ReceivingKitPage() {
           autoCapitalize="characters" autoCorrect="off" spellcheck={false}
           value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)}
         />
-        <button
-          class={`icon-btn lg${scanning ? ' accent' : ''}`} onClick={() => setScanning(!scanning)}
-          aria-label="Scan a part or bag barcode" aria-pressed={scanning}
-        ><ScanIcon /></button>
+        <ScanPartButton parts={() => rows.map((r) => r.item)} onScan={setQ} />
       </div>
-      {scanning && (
-        <>
-          <BarcodeScanner
-            onResult={(text) => {
-              setQ(partFromBarcode(text, rows.map((r) => r.item.search_key)));
-              setScanning(false);
-            }}
-          />
-          <p class="muted center small">Point at the barcode on a part or bag label.</p>
-        </>
-      )}
       <div class="chips" role="group" aria-label="Show">
         {FILTERS.map(([f, label]) => (
           <button class={`chip${show === f ? ' on' : ''}`} aria-pressed={show === f} onClick={() => setShow(f)}>{label} · {counts[f]}</button>

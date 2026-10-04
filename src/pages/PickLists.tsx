@@ -15,6 +15,7 @@ import { consume } from '../data/actions';
 import { commit, deleteOp, insertOp, updateOp } from '../data/mutate';
 import { catalog, loaded, tables } from '../data/store';
 import { search } from '../lib/search';
+import { ScanPartButton } from '../components/PartScanner';
 
 const byNatural = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true });
 
@@ -221,6 +222,7 @@ export function PickListDetailPage() {
           <div class="row">
             <input class="input grow code-input" style={{ fontSize: '18px' }} placeholder="Part number" autoCapitalize="characters" autoCorrect="off" value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)} />
             <input class="input" style={{ width: '84px' }} inputMode="decimal" placeholder="Qty" value={qty} onInput={(e) => setQty((e.target as HTMLInputElement).value)} />
+            <ScanPartButton parts={() => catalog.value.items.values()} onScan={setQ} />
           </div>
           {q.trim().length >= 2 && (
             <div class="list">

@@ -1,6 +1,8 @@
 # Dependencies and build output
 node_modules/
 dist/
+# OCR engine, copied from node_modules by scripts/copy-ocr.mjs
+public/ocr/
 coverage/
 
 # Wrangler local state (local D1/R2 data)

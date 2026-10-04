@@ -6,6 +6,7 @@ import changelogText from '../CHANGELOG.md?raw';
 import { newSince, parseChangelog } from '../shared/changelog';
 import { defaultPrefix, describePrefix, gridLocations } from '../shared/locationGrid';
 import { normalizeLocationCode, partFromBarcode, toSearchKey } from '../shared/normalize';
+import { buildPartIndex, readPartNumber } from '../shared/partReader';
 import { newId } from '../shared/schema';
 import { placement, sampleCatalog } from './fixtures';
 
@@ -46,6 +47,38 @@ describe('part from barcode', () => {
   });
   it('falls back to the text as scanned', () => {
     expect(partFromBarcode('F-1234', keys)).toBe('F-1234');
+  });
+});
+
+describe('reading a part number', () => {
+  const index = buildPartIndex(['F-01406B', 'AN470AD4-5', 'VA-140', 'W-1010', 'HS-1002', 'HS-1003'].map((c) => ({ stock_code: c, search_key: toSearchKey(c) })));
+  const read = (line: string) => readPartNumber(line, index);
+  it('snaps a clean read to the catalog part number', () => {
+    expect(read('F-01406B')).toEqual({ text: 'F-01406B', known: true });
+    expect(read('PART F01406B QTY 2')).toEqual({ text: 'F-01406B', known: true });
+  });
+  it('joins a part number split in two', () => {
+    expect(read('F- 01406B')).toEqual({ text: 'F-01406B', known: true });
+  });
+  it('forgives characters OCR confuses', () => {
+    expect(read('F-O14O6B')).toEqual({ text: 'F-01406B', known: true });
+    expect(read('AN47OAD4-S')).toEqual({ text: 'AN470AD4-5', known: true });
+    expect(read('F-0I4068')).toEqual({ text: 'F-01406B', known: true });
+  });
+  it('finds a part number run into the next word', () => {
+    expect(read('F-01406BQTY4')).toEqual({ text: 'F-01406B', known: true });
+    expect(read('VA-140QTY4')).toEqual({ text: 'VA-140', known: true });
+    // Carries on with more digits: a different part, not VA-140.
+    expect(read('VA-1407')).toEqual({ text: 'VA-1407', known: false });
+  });
+  it('allows one character off on longer numbers, when only one part fits', () => {
+    expect(read('F-0146B')).toEqual({ text: 'F-01406B', known: true });
+    // HS-1002 and HS-1003 are both one off from HS-1004: no guess.
+    expect(read('HS-1004')).toEqual({ text: 'HS-1004', known: false });
+  });
+  it('returns an unknown part number as read, and nothing for plain words', () => {
+    expect(read('Bag of rivets MS20470AD4-6')).toEqual({ text: 'MS20470AD4-6', known: false });
+    expect(read("VAN'S AIRCRAFT")).toBeNull();
   });
 });
 

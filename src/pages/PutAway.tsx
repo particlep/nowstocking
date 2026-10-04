@@ -10,6 +10,7 @@ import { createLocation, guessLocationType, putAway, undo } from '../data/action
 import { catalog } from '../data/store';
 import { warehouseId } from '../data/workspace';
 import { search } from '../lib/search';
+import { ScanPartButton } from '../components/PartScanner';
 
 interface Placed { itemId: number; undo: Op[]; at: number }
 
@@ -89,13 +90,16 @@ export function PutAwayPage() {
         <button class="btn" aria-label="Choose a different location" onClick={() => setLocId(null)}>Change</button>
       </section>
 
-      <label class="search">
-        <SearchIcon />
-        <input
-          type="search" aria-label="Part or bag number" placeholder="Part or bag number" autoCapitalize="characters"
-          autoCorrect="off" spellcheck={false} value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)}
-        />
-      </label>
+      <div class="row">
+        <label class="search grow">
+          <SearchIcon />
+          <input
+            type="search" aria-label="Part or bag number" placeholder="Part or bag number" autoCapitalize="characters"
+            autoCorrect="off" spellcheck={false} value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)}
+          />
+        </label>
+        <ScanPartButton parts={() => catalog.value.items.values()} onScan={setQ} />
+      </div>
 
       {hits.length > 0 && (
         <div class="cards">
