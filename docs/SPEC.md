@@ -110,7 +110,8 @@ One PWA on my iPhone that does lookup, scanning, put-away, receiving, and pick l
   or turn AI off. They get one email when an account's allowance runs out and one at 80% and 100% of the cap. Hosted
   defaults: $5 per account, $50 per month.
 - **Legal:** nowstocking.com/privacy and /terms (site/public). The hosted sign-in screen and Settings link to them
-  through `TERMS_URL` and `PRIVACY_URL`. privacy@nowstocking.com forwards through Cloudflare Email Routing.
+  through `TERMS_URL` and `PRIVACY_URL`. Their contact address is pete@nowstocking.com. privacy@nowstocking.com
+  forwards through Cloudflare Email Routing.
 - **Later:** billing.
 
 ## Data Model (per warehouse)
