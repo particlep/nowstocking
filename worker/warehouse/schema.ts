@@ -85,6 +85,16 @@ ALTER TABLE items ADD COLUMN photo_key TEXT;
   /* 4: how many actually arrived, when it's fewer than shipped (null: not counted) */ `
 ALTER TABLE items ADD COLUMN qty_received REAL;
 `,
+  /* 5: when a pick list was made, so the newest is listed first. Filled from the change log, and the rows are
+     bumped to a new version so devices pull the date. */ `
+ALTER TABLE pick_lists ADD COLUMN created_at TEXT;
+UPDATE sync_counter SET value = value + 1 WHERE id = 1;
+UPDATE pick_lists SET
+  created_at = COALESCE(
+    (SELECT MIN(changed_at) FROM change_log WHERE table_name = 'pick_lists' AND row_id = pick_lists.id AND field = '_created'),
+    updated_at),
+  version = (SELECT value FROM sync_counter WHERE id = 1);
+`,
 ];
 
 /** Apply any migrations this warehouse hasn't run yet. Call inside blockConcurrencyWhile. */

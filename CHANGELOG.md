@@ -5,6 +5,9 @@ the bottom of More and on the sign-in screen. Versions that only changed the web
 listed. The app's What's new screen (Settings) is built from this file: keep the `## <version> · <date>` headings
 and one change per bullet.
 
+## 54 · 2026-10-11
+- Pick lists: the newest list is at the top.
+
 ## 53 · 2026-10-11
 - Pick lists from plans: when a part number isn't in your inventory, "Did you mean" also finds the same part written with extra zeros or a dash number, so VS-705 on older plans suggests VS-00705-1.
 

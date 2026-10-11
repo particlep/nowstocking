@@ -96,10 +96,11 @@ function applyOne(sql: SqlStorage, m: Mutation, planned: Planned[], user: string
       sql.exec(`UPDATE ${p.table} SET code = code || '~deleted-' || id WHERE code = ? AND deleted_at IS NOT NULL`, p.fields.code);
     }
     if (p.insert) {
-      const cols = Object.keys(p.fields);
+      const row = p.table === 'pick_lists' ? { ...p.fields, created_at: now } : p.fields;
+      const cols = Object.keys(row);
       sql.exec(
         `INSERT INTO ${p.table} (id, ${cols.join(', ')}, version, updated_at, updated_by) VALUES (?, ${cols.map(() => '?').join(', ')}, ?, ?, ?)`,
-        p.id, ...cols.map((c) => p.fields[c]), version, now, user,
+        p.id, ...cols.map((c) => row[c]), version, now, user,
       );
       log(p.table, p.id, '_created', null, JSON.stringify(p.fields));
       continue;

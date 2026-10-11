@@ -3,7 +3,7 @@ import { db } from './idb';
 import { outbox, recompute } from './store';
 import { scheduleSync } from './sync';
 
-type Writable<T extends TableName> = Partial<Omit<Rows[T], 'id' | 'version' | 'updated_at' | 'updated_by'>>;
+type Writable<T extends TableName> = Partial<Omit<Rows[T], 'id' | 'version' | 'updated_at' | 'updated_by' | 'created_at'>>;
 
 export function insertOp<T extends TableName>(table: T, fields: Writable<T>, id = newId()): Op & { op: 'insert' } {
   return { op: 'insert', table, id, fields: fields as Record<string, unknown> };

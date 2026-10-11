@@ -202,6 +202,18 @@ describe('mutations and sync', () => {
     expect((await sync(user, wid)).rows.placements.some((p) => p.id === s.pl)).toBe(false);
   });
 
+  it('stamps a pick list with when it was made, and keeps it when the list is edited', async () => {
+    const { user, wid } = await newOwner();
+    const id = nextId();
+    await mutate(user, wid, [mutation('new list', [{ op: 'insert', table: 'pick_lists', id, fields: { section: '10', title: 'Aft deck' } }])]);
+    const made = (await sync(user, wid)).rows.pick_lists.find((p) => p.id === id)!.created_at;
+    expect(made).toMatch(/^\d{4}-\d\d-\d\dT/);
+    await mutate(user, wid, [mutation('rename', [{ op: 'update', table: 'pick_lists', id, fields: { title: 'Forward deck' } }])]);
+    expect((await sync(user, wid)).rows.pick_lists.find((p) => p.id === id)!.created_at).toBe(made);
+    const spoof = mutation('spoof', [{ op: 'update', table: 'pick_lists', id, fields: { created_at: '2000-01-01T00:00:00.000Z' } as never }]);
+    expect((await mutate(user, wid, [spoof])).body.results[0].status).toBe('rejected');
+  });
+
   it('applies a large import in one request', async () => {
     const { user, wid } = await newOwner();
     const kit = nextId();

@@ -59,6 +59,8 @@ export interface PickList extends Meta {
   section: string;
   page: string | null;
   title: string | null;
+  /** Set by the server when the list is made. */
+  created_at: string;
 }
 
 export interface PickListLine extends Meta {

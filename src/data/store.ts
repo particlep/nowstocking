@@ -52,7 +52,8 @@ export function applyOps(base: Tables, ops: Op[], user: string, at: string): Tab
     const existing = map.get(op.id);
     const meta = { version: 0, updated_at: at, updated_by: user };
     if (op.op === 'insert') {
-      map.set(op.id, { deleted_at: null, ...defaultsFor(op.table), ...op.fields, ...meta, id: op.id });
+      const created = op.table === 'pick_lists' ? { created_at: at } : {};
+      map.set(op.id, { deleted_at: null, ...defaultsFor(op.table), ...op.fields, ...meta, ...created, id: op.id });
     } else if (existing) {
       const fields = op.op === 'delete' ? { deleted_at: at } : op.fields;
       map.set(op.id, { ...existing, ...fields, ...meta });

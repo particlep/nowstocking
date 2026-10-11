@@ -22,7 +22,7 @@ const byNatural = (a: string, b: string) => a.localeCompare(b, undefined, { nume
 export function PickListsPage() {
   const { route } = useLocation();
   const lists = [...tables.value.pick_lists.values()].filter((p) => !p.deleted_at)
-    .sort((a, b) => byNatural(a.section, b.section) || byNatural(a.page ?? '', b.page ?? ''));
+    .sort((a, b) => (b.created_at ?? b.updated_at).localeCompare(a.created_at ?? a.updated_at));
   const lines = [...tables.value.pick_list_lines.values()].filter((l) => !l.deleted_at);
   const [mode, setMode] = useState<'none' | 'photo' | 'manual'>('none');
   const [section, setSection] = useState('');
