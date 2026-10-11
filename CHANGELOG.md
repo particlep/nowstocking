@@ -5,6 +5,9 @@ the bottom of More and on the sign-in screen. Versions that only changed the web
 listed. The app's What's new screen (Settings) is built from this file: keep the `## <version> · <date>` headings
 and one change per bullet.
 
+## 53 · 2026-10-11
+- Pick lists from plans: when a part number isn't in your inventory, "Did you mean" also finds the same part written with extra zeros or a dash number, so VS-705 on older plans suggests VS-00705-1.
+
 ## 50 · 2026-10-04
 - Scan a part number with the camera: the scan button next to the part search (Find a part, Receiving, Put away, pick lists) reads the printed part number on a label, or its barcode, and types it in. A part in your list is typed as soon as it's read; anything else is shown for you to tap.
 - The text reader runs on the phone, with no AI and no upload. It downloads once (about 7 MB) the first time you scan, then works offline.

@@ -36,7 +36,10 @@ describe('search', () => {
 
 describe('matching plans part numbers to inventory', () => {
   const cat = sampleCatalog({
-    items: [...sampleCatalog().items.values(), item(300, 2, 'F-01412', { item_type: 'part' })],
+    items: [
+      ...sampleCatalog().items.values(), item(300, 2, 'F-01412', { item_type: 'part' }),
+      item(301, 2, 'VS-00705-1'), item(302, 2, 'VS-00706-1'), item(303, 2, 'VS-07051-2'),
+    ],
   });
 
   it('matches exactly regardless of dashes', () => {
@@ -47,5 +50,14 @@ describe('matching plans part numbers to inventory', () => {
     const m = matchPart(cat, 'F-01412C');
     expect(m.exact).toEqual([]);
     expect(m.suggestions.map((i) => i.stock_code)).toContain('F-01412');
+  });
+
+  it('suggests a part whose number is zero-padded with a dash suffix', () => {
+    expect(matchPart(cat, 'VS-705').suggestions.map((i) => i.stock_code)).toEqual(['VS-00705-1']);
+    expect(matchPart(cat, 'VS706').suggestions.map((i) => i.stock_code)).toEqual(['VS-00706-1']);
+  });
+
+  it('suggests the padded part when the plans have the suffix too', () => {
+    expect(matchPart(cat, 'VS-705-1').suggestions.map((i) => i.stock_code)).toEqual(['VS-00705-1']);
   });
 });
