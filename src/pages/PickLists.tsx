@@ -16,6 +16,7 @@ import { commit, deleteOp, insertOp, updateOp } from '../data/mutate';
 import { catalog, loaded, tables } from '../data/store';
 import { search } from '../lib/search';
 import { ScanPartButton } from '../components/PartScanner';
+import { PhotoThumb } from '../components/PhotoViewer';
 
 const byNatural = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true });
 
@@ -310,6 +311,9 @@ function PickLine({ r, listId }: { r: ResolvedLine; listId: number }) {
   const logged = (itemId: number) => (cat.consumptionsByItem.get(itemId) ?? []).filter((c) => c.pick_list_id === listId);
   const tone = pulled ? ' done' : r.problem === 'backordered' ? ' warn' : r.problem ? ' problem' : '';
   const single = r.items.length === 1 ? r.items[0] : null;
+  // The same part in several kits usually has one photo; show whichever copy has it.
+  const photo = r.items.find((it) => it.photo_key);
+  const where = single ? formatLocations(cat, effectiveLocation(cat, single).placements) : '';
   return (
     <div class={`item-card${tone}`} style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
       <div class="row" style={{ gap: '12px' }}>
@@ -318,6 +322,12 @@ function PickLine({ r, listId }: { r: ResolvedLine; listId: number }) {
           onChange={() => commit(`${pulled ? 'Unpull' : 'Pulled'} ${line.stock_code}`, [updateOp('pick_list_lines', line.id, { pulled: pulled ? 0 : 1 })])}
           aria-label={`Pulled ${line.stock_code}`}
         />
+        {photo && (
+          <PhotoThumb
+            photoKey={photo.photo_key!} dim={pulled}
+            line={{ code: line.stock_code, detail: [photo.description, where].filter(Boolean).join(' · ') || undefined }}
+          />
+        )}
         <div class="grow">
           <div class="code" style={{ textDecoration: pulled ? 'line-through' : 'none', color: pulled ? 'var(--muted)' : undefined }}>
             {line.stock_code}{line.qty_needed != null && <span class="muted" style={{ fontWeight: 500 }}> ×{fmtQty(line.qty_needed)}</span>}
@@ -327,7 +337,7 @@ function PickLine({ r, listId }: { r: ResolvedLine; listId: number }) {
         {r.problem === 'Not in inventory' || r.problem === 'No location'
           ? <span class="tag-none">{r.problem}</span>
           : r.problem ? <span class={`badge ${r.problem}`}>{r.problem}</span>
-          : single && <span class={`tag${pulled ? ' dim sm' : ''}`}>{formatLocations(cat, effectiveLocation(cat, single).placements)}</span>}
+          : single && <span class={`tag${pulled ? ' dim sm' : ''}`}>{where}</span>}
       </div>
       {!single && r.items.map((it) => (
         <a class="row small" href={`/item/${it.id}`} style={{ paddingLeft: '38px', color: 'inherit', textDecoration: 'none' }}>

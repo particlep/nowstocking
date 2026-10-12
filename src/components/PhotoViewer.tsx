@@ -1,5 +1,6 @@
 import { signal } from '@preact/signals';
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { photoUrl } from '../data/photos';
 import { CloseIcon } from './icons';
 
 /**
@@ -17,6 +18,17 @@ export interface PhotoLine {
 
 export function openPhoto(src: string, alt: string, line?: PhotoLine) {
   viewerPhoto.value = { src, alt, line };
+}
+
+/** A part's photo thumbnail. Tap it for the full-size photo in the viewer, captioned with the part number. */
+export function PhotoThumb({ photoKey, line, size = 44, dim }: { photoKey: string; line: PhotoLine; size?: number; dim?: boolean }) {
+  return (
+    <button
+      type="button" style={{ padding: 0, border: 0, background: 'none', flexShrink: 0, opacity: dim ? 0.5 : 1 }}
+      aria-label={`Open the photo of ${line.code}`}
+      onClick={() => openPhoto(photoUrl(photoKey, 'full'), `Photo of ${line.code}`, line)}
+    ><img class="thumb" src={photoUrl(photoKey, 'thumb')} alt="" loading="lazy" style={{ width: `${size}px`, height: `${size}px` }} /></button>
+  );
 }
 
 const MAX = 6;

@@ -5,6 +5,9 @@ the bottom of More and on the sign-in screen. Versions that only changed the web
 listed. The app's What's new screen (Settings) is built from this file: keep the `## <version> · <date>` headings
 and one change per bullet.
 
+## 55 · 2026-10-12
+- Pick lists: each part shows its photo, when it has one. Tap it to see it full size, with where it's stored.
+
 ## 54 · 2026-10-11
 - Pick lists: the newest list is at the top.
 
